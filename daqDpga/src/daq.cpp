@@ -595,7 +595,7 @@ int main(int argc, char* argv[]) {
 		
 		pfring *ring0 = pfring_open(device[NumIfce], snaplen, flags);
 		if(ring0 == NULL) {
-			printf("Error openning ring %s\n",device[NumIfce]);
+			printf("Error openning ring %s %s\n",device[NumIfce],strerror(errno));
 			return(0);
 		}
 		else
