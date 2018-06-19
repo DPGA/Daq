@@ -50,9 +50,4 @@ add_executable(
 target_link_libraries(daqdpga PUBLIC pthread pfring pcap z rt ringshm frame)
 
 #add_executable(some_executable some_executable_source.c)
-add_custom_command(OUTPUT daqdpga
-   POST_BUILD 
-	sudo setcap cap_net_admin+eip ${EXECUTABLE_OUTPUT_PATH}/bin/daqdpga
-	message(INFO "command affter compile")
-	)
 #add_custom_target(daqdpga DEPENDS ${source_files})
