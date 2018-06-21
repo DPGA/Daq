@@ -57,4 +57,3 @@ add_executable(
 
 target_link_libraries(daqdpga PUBLIC pthread pfring pcap z rt ringshm frame)
 
-#add_custom_target(daqdpga DEPENDS ${source_files})
