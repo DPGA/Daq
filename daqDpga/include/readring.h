@@ -44,6 +44,7 @@ class cReadRing : public DecodeFrame
 		void setNbEventDisplay(long nb);
 		void StartDaq();
 		void setFile(string *File,bool wr);
+		void noFile();
 		
 	protected:
 	

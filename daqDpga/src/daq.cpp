@@ -301,7 +301,8 @@ void sigproc(int sig) {
 	printf("\n");
 	if ( -1 == msgctl( g_msgid, IPC_RMID, NULL ) )
             perror( "msgctl" );
-	ipc->join();            
+	ipc->join(); 
+	msgctl(g_msgid, IPC_RMID,0);           
 	if (ipc) 	delete (ipc);
 	if (shdmem) delete (shdmem);
 	if (shdNet) delete (shdNet);
@@ -381,6 +382,7 @@ void IpcReceivedMsg()
 * 
 * **********************************************************************/
 	MESSAGE msg;
+	string s;
 
    msg.nMsgType = 0;
    std::cout << "msg id = "<< g_msgid << std::endl;
@@ -402,7 +404,8 @@ void IpcReceivedMsg()
 								   std::cout << "Stop  " << RunDaq << std::endl;break;
 				case IPCINTERVAL : for (auto &it : pReadRing) it->setNbEventDisplay(msg.arg.val);
 										 std::cout << "interval " << msg.arg.val << std::endl;break;
-				case IPCRECORD   : string s = msg.arg.sText;for (auto &it : pReadRing) it->setFile(&s,true); break;
+				case IPCRECORD   : s = msg.arg.sText;for (auto &it : pReadRing) it->setFile(&s,true); break;
+				case IPCWITHOUTFILE : for (auto &it : pReadRing) it->noFile(); break;
 			};
 		}
 		else usleep(100);

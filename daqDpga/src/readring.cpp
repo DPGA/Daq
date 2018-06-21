@@ -128,6 +128,13 @@ void cReadRing::StartDaq()
 	DaqStarted = true;
  }
  
+ 
+void cReadRing::noFile()
+{
+  if (Dumper) fclose(Dumper);
+  if (DumperError) fclose(DumperError);
+}
+ 
 void cReadRing::setFile(string *File,bool wr)
 /************************************************
  * 
