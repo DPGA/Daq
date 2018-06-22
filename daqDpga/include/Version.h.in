@@ -11,6 +11,6 @@
 #define __MINOR_VERSION__ "${MINOR_VERSION}"
  
 #define __GITVER__  "${GIT_BUILD_VERSION}"
-#define __PROGRAM_VERSION_STRING__ concat(__MAJOR_VERSION__ .)// __MINOR_VERSION__ .__GITVER__
+#define __PROGRAM_VERSION_STRING__ concat(__MAJOR_VERSION__ ,".")// __MINOR_VERSION__ .__GITVER__
 
 #endif /* EXAMPLE_H */
