@@ -4,7 +4,10 @@
 /*
  * These values are automatically set according to their cmake variables.
  */
-#define __PROGRAM_VERSION_STRING__ "1.0.002"
+#define __MAJOR_VERSION__ "${MAJOR_VERSION}"
+#define __MINOR_VERSION__ "${MINOR_VERSION}"
+ 
 #define __GITVER__  "${GIT_BUILD_VERSION}"
+#define __PROGRAM_VERSION_STRING__ __MAJOR_VERSION__"."__MINOR_VERSION__"."__GITVER__
 
 #endif /* EXAMPLE_H */
