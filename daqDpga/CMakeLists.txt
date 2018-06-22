@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 2.8)
 
 project(daqdpga)
 
+
+message(INFO ${Green} " Project " ${PROJECT_NAME}  ${White}) 
 set (O_FLAG "-O2 -DHAVE_PF_RING")
 set (CFLAGS "${O_FLAG} -Wall -D ENABLE_BPF") 
 #-D HAVE_PF_RING_ZC")
@@ -38,8 +40,13 @@ file (
 	../include/*.h
 )
 
+gitcommit(${CMAKE_CURRENT_SOURCE_DIR}/..)
+gitrev(${CMAKE_CURRENT_SOURCE_DIR}/.. include)
+
 set (SETCAP_ARGS "cap_net_raw,cap_net_admin+eip")
 set( TARGET_NOROOT_PERM noroot )   
+
+
 
 
 add_custom_target( noroot

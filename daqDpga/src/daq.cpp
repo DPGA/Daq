@@ -75,8 +75,9 @@
 #include "frame.h"
 #include "GenericTypeDefs.h"
 #include "readring.h"
+#include "Version.h"
 
-#define  VERSION_DAQ "1.1.0  " __DATE__  " " __TIME__
+//#define  VERSION_DAQ "1.1.0  " __DATE__  " " __TIME__
 
 #define ALARM_SLEEP				1
 #define ALARM_STOP				10
@@ -172,8 +173,9 @@ void PauseStartFrame(bool start)
 
 void VersionInfo()
 {
-	std::cout << "Program daq " << VERSION_DAQ << std::endl;
-	std::cout << "Daniel Lambert <daniel.lambert@clermont.in2p3.fr>" << std::endl;
+	std::cout << FgColor::yellow() << "Program Daq " << __PROGRAM_VERSION_STRING__ << "  Gitrev " << __GITVER__
+				 << " build at " << __DATE__ << "  " << __TIME__ << FgColor::white() << std::endl;
+	std::cout << "Author Daniel Lambert <daniel.lambert@clermont.in2p3.fr>" << std::endl;
 	std::cout << "Shm Library " << getVersionShm() << std::endl;
 	std::cout << "DecodeFrame Library " << getVersionDecodeFrame() << std::endl;
 }
