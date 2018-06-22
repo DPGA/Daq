@@ -38,8 +38,21 @@ file (
 	../include/*.h
 )
 
-
 set (SETCAP_ARGS "cap_net_raw,cap_net_admin+eip")
+set( TARGET_NOROOT_PERM noroot )   
+
+
+add_custom_target( noroot
+                   COMMENT "Set permission without privilege ..."
+                   DEPENDS ${PROJECT_NAME} )
+add_dependencies( noroot  ${PROJECT_NAME} )
+
+    
+add_custom_command( TARGET ${TARGET_NOROOT_PERM} POST_BUILD 
+                    COMMAND sudo /sbin/setcap ${SETCAP_ARGS}  ${EXECUTABLE_OUTPUT_PATH}/${PROJECT_NAME}
+                    )    
+
+
 #add_executable(some_executable some_executable_source.c)
 
  #  COMMAND sudo setcap ${SETCAP_ARGS} ${EXECUTABLE_OUTPUT_PATH}/bin/daqdpga
@@ -49,10 +62,8 @@ set (SETCAP_ARGS "cap_net_raw,cap_net_admin+eip")
 #Déclaration de l'exécutable
 
 add_executable(
-
         daqdpga
         ${source_files}
-
 )
 
 target_link_libraries(daqdpga PUBLIC pthread pfring pcap z rt ringshm frame)

@@ -61,7 +61,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <zlib.h>
-//#include <bsd/stdio.h>
 #include <chrono>
 
 #include <stdio.h>
@@ -71,9 +70,6 @@
 #include <sys/wait.h>
 #include "ipcdaq.h"
 
-
-//#include "pfring.h"
-//#include "Tools.h"
 #include "color.h"
 #include "pfutils.h"
 #include "frame.h"
@@ -438,15 +434,15 @@ int main(int argc, char* argv[]) {
 											"src 192.168.2.133 and  udp port 60000","src 192.168.2.134 and  udp port 60000",
 											"src 192.168.2.135 and  udp port 60000","src 192.168.2.136 and  udp port 60000"}
 										};
-*/											 
+*/	
+										 
 	char *device[MAX_IFCE];
 	char c;
 	char *bind_mask[MAX_IFCE];
 	char *bpfFilter = NULL; 
 	int NbEventDisplay=1000;
-//	u_int watermark;
-//	u_int rehash_rss;
-//	u_int poll_duration; 
+
+ 
 	u_int TotalChannels=0;
 
 	u_int verbose = 0;
@@ -458,7 +454,7 @@ int main(int argc, char* argv[]) {
 	eModefile ModeFile = ALL;
 	int snaplen = DEFAULT_SNAPLEN;//, rc;
 	packet_direction direction = rx_only_direction;
-  //u_int i;
+
 	std::string File;
 	int wait_for_packet=1;
 	int use_extended_pkt_header=0;
@@ -477,6 +473,7 @@ int main(int argc, char* argv[]) {
 	}
   
 //  pfring *ring[MAX_NUM_RX_CHANNELS];
+
   int threads_core_affinity[MAX_IFCE][MAX_NUM_RX_CHANNELS];
 
   memset(threads_core_affinity, -1, sizeof(threads_core_affinity));
@@ -555,7 +552,6 @@ int main(int argc, char* argv[]) {
 			case 1 : ModeFile = RAWDATA;printf("Record File Mode RawData\n");break;
 			case 2 : ModeFile = ALL;printf("Record File Mode All Data\n");break;
 		}
-		//printf("Record File %d\n",ModeFile);
 		break;
     }
   }
