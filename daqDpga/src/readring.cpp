@@ -390,7 +390,7 @@ void cReadRing::Run()
 				}
 				
 				if (((TriggerCount) % NbEventDisplay) == 0){
-					printf("Write shm\n");
+//					printf("Write shm\n");
 					ShdMem->push_back(*TempBuf);
 				}
 
