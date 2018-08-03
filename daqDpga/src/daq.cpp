@@ -246,8 +246,9 @@ void PrintStatsEnd()
 		
 		if (StatFrame->NbFrameRec>0)  Purcent = (double)StatFrame->NbFrameAsmLost/(double)StatFrame->NbFrameRec;
 		else Purcent= 0.0;
-		printf("%s\t Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%8llu %s (%2.2f %%) \t Frame Amc=%8d ErrId=%8llu Under=%4llu Over=%4llu Tc=%d\n",
+		printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%8llu %s (%2.2f %%) \t Frame Amc=%8d ErrId=%8llu Under=%4llu Over=%4llu Tc=%d\n",
 				pIt->GetDev().c_str(),
+				StatFrame->MemFeId,
 				StatFrame->NbFrameRec,
 				StatFrame->NbFrameAsm,
 				FgColor::red(),
