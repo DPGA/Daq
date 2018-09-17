@@ -60,7 +60,7 @@ pcap_dumper_t *dump_open(pcap_t *pcap, const char *path, int want_gzip) {
 }
 
 cReadRing::cReadRing(int index,string dev,int caplen,u_int32_t flags,int threads_core_affinity,string *File,ShmRingBuffer<SharedMemory> *shdmem,
-							bool dumpfile,packet_direction direction,int verbose,int wait_for_packet,unsigned int numcpu) :DecodeFrame(),the_thread()
+							ShmRingBuffer<sHistoSrout> *shdrout,bool dumpfile,packet_direction direction,int verbose,int wait_for_packet,unsigned int numcpu) :DecodeFrame(),the_thread()
 /************************************************
  * 
  * 
@@ -68,6 +68,7 @@ cReadRing::cReadRing(int index,string dev,int caplen,u_int32_t flags,int threads
 {
 	int rc;
 	ShdMem 	= shdmem;
+	ShdSrout = shdrout;
 	Index 	= index;
 	Dev 		= dev + "@" + to_string(index);
 	Verbose 	= verbose;
@@ -109,6 +110,8 @@ cReadRing::cReadRing(int index,string dev,int caplen,u_int32_t flags,int threads
 	pfring_enable_ring(Ring);
 
 	StatFrame = (struct sStatFrame *) malloc(sizeof(sStatFrame)); 
+	hSrout = (struct sHistoSrout *) malloc(sizeof(sHistoSrout));
+	memset(hSrout,0,sizeof(sHistoSrout));
 	if (StatFrame == NULL) printf("Error allocating memory StatFrame\n");
 	memset(StatFrame,0,sizeof(sStatFrame));
 	DaqStarted = false;
@@ -124,6 +127,7 @@ void cReadRing::StartDaq()
  {
 	 
 	memset(StatFrame,0,sizeof(sStatFrame));  // Reset statistique
+	memset(hSrout,0,sizeof(sHistoSrout));
 	firstframe = true;
 	DaqStarted = true;
  }
@@ -335,9 +339,6 @@ void cReadRing::Run()
 
 			struct SharedMemory *TempBuf = (struct SharedMemory *) &buffer[42];
 			SetPacket((uint16_t *) &buffer[42]);
-			//Print((uint16_t *) &buffer[42],80);
-			
-//			Decodepacket(&hdr, buffer,first,&FrameOk);
 			
 			if (firstframe) {
 				
@@ -374,6 +375,17 @@ void cReadRing::Run()
 				StatFrame->NbFrameAmc = GetNbFrameAmc();
 				NbSamples = GetNbSamples(); 
 				
+				// Permet de faire un histo des srout
+				u16 *buf = GetChannel(0);
+				unsigned short Ch = GetCh();
+				if ((Ch >=0) && (Ch < 24)) {
+					
+					hSrout->noBoard = GetFeId();
+					hSrout->nohalfDrs = Ch /4;
+					hSrout->HistoSrout[hSrout->nohalfDrs][GetSrout()]++;
+				}
+				//
+				
 				if (IsErrorTT()) TriggerCount = GetCptTriggerAsm();
 				else TriggerCount = GetCptTriggerThor();
 				
@@ -392,6 +404,7 @@ void cReadRing::Run()
 				if (((TriggerCount) % NbEventDisplay) == 0){
 //					printf("Write shm\n");
 					ShdMem->push_back(*TempBuf);
+					ShdSrout->push_back(*hSrout);
 				}
 
 			}
@@ -431,6 +444,7 @@ void cReadRing::Stop()
 	pfring_shutdown(Ring);
 	close(FdFifo);
 	free(StatFrame);
+	free(hSrout);
 	//remove(&NameFifo[0]);
 }
 

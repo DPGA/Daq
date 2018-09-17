@@ -114,6 +114,8 @@ bool RunDaq= false;
 
 ShmRingBuffer<sStatFrame> 		*shdNet;
 ShmRingBuffer<SharedMemory> 	*shdmem;
+ShmRingBuffer<sHistoSrout> 	*shdsrout;
+
 int g_msgid;
 std::thread *ipc;
 
@@ -305,6 +307,7 @@ void sigproc(int sig) {
 	if (ipc) 	delete (ipc);
 	if (shdmem) delete (shdmem);
 	if (shdNet) delete (shdNet);
+	if (shdsrout) delete (shdsrout);
   exit(0);
 }
 
@@ -588,6 +591,9 @@ int main(int argc, char* argv[]) {
 	int base = 0;
 	shdmem = new ShmRingBuffer<SharedMemory>(CAPACITY,true,SHM_ASM_DATA);
 	shdNet = new ShmRingBuffer<sStatFrame>(CAPACITY,true,SHM_NETWORK);
+	shdsrout = new ShmRingBuffer<sHistoSrout>(CAPACITY,true,SHM_SROUT);
+	
+	
 	printf("Shm Library %s\n decodeFrame library %s\n",shdmem->getVersion().c_str(),"toto");
 	
 	printf("Size Stats net %lu\n",sizeof (sStatFrame));
@@ -645,7 +651,7 @@ int main(int argc, char* argv[]) {
 	
 	for (unsigned int Interface=0; Interface<	Ifce;++Interface) {	
 		for (unsigned int index = 0; index < num_channels[Interface]; index++,i++)  {
-			pReadRing.push_back(new class cReadRing(index,device[Interface],snaplen,flags,threads_core_affinity[Interface][index],&File,shdmem,
+			pReadRing.push_back(new class cReadRing(index,device[Interface],snaplen,flags,threads_core_affinity[Interface][index],&File,shdmem,shdsrout,
 																 DumpFile,direction,verbose,wait_for_packet,numCPU));
 			if (!pReadRing.back()) std::cout <<" Error Creating thread " << i << "  " << pReadRing[i] << std::endl;
 			pReadRing.back()->setNbEventDisplay(NbEventDisplay);
