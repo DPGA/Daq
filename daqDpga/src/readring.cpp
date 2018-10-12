@@ -246,8 +246,11 @@ void cReadRing::PrintStats()
 //	m.unlock();
 	
 	if (numPkts_temp >0) {	
+		unsigned long rate = StatFrame->TriggerCount-StatFrame->LastTriggerCount;
+
 		double thpt = ((double)8*(numBytes_temp-StatFrame->lastByte))/(delta*1000.0);
-		fprintf(stderr,"=========================\n"
+		if (rate > 0) {
+			fprintf(stderr,"=========================\n"
 							"[%s%.2f%s] [%02x] Abs Stats: [%.2f] [%s%s%s][%lu pkts rcvd][%lu pkts dropped]\t"
 							"Total Pkts=%lu/Dropped=%.1f %%\t",
 							FgColor::blue(),deltaMillisec/1000,FgColor::white(), 
@@ -257,8 +260,9 @@ void cReadRing::PrintStats()
 							(numPkts_temp + pfringStat.drop),
 							numPkts_temp == 0 ? 0 : (double)(pfringStat.drop*100)/(double)(numPkts_temp + pfringStat.drop));
 //							fprintf(stderr, " %lu bytes last %lu ",numBytes_temp,lastPkts);
-		fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%llu\n", (double)(numPkts_temp -StatFrame->lastPkts), thpt,StatFrame->ErrId,
+			fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%llu\n", (double)(numPkts_temp -StatFrame->lastPkts), thpt,StatFrame->ErrId,
 					StatFrame->TriggerCount-StatFrame->LastTriggerCount);
+		}
 		StatFrame->lastPkts = numPkts_temp;
 		StatFrame->lastByte = numBytes_temp;
 		StatFrame->LastTriggerCount = StatFrame->TriggerCount;
