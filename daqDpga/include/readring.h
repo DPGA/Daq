@@ -95,5 +95,6 @@ class cReadRing : public DecodeFrame
 		bool DaqStarted;
 		sHistoSrout *hSrout;
 		ShmRingBuffer<sHistoSrout> *ShdSrout;
+        bool errFirstFrame;
 };
 #endif

@@ -130,6 +130,7 @@ void cReadRing::StartDaq()
 	memset(hSrout,0,sizeof(sHistoSrout));
 	firstframe = true;
 	DaqStarted = true;
+    errFirstFrame = false;
  }
  
  
@@ -151,7 +152,6 @@ void cReadRing::setFile(string *File,bool wr)
 		InitDumpFile();
 	}
  }
- 
 
 
 
@@ -164,7 +164,7 @@ cReadRing::~cReadRing()
 /*	do_shutdown = true;
 	sleep(2);
 	pfring_shutdown(Ring);
-	if (Dumper) pcap_dump_close(Dumper);
+	if (Dumper) pcap_dump_close(Dumper);errFirstFrame
    if (DumperError) pcap_dump_close(DumperError);
 */	std::cout << "Destroy thread " << Dev << endl;
 //	std::terminate();
@@ -177,7 +177,7 @@ void  cReadRing::setNbEventDisplay(long nb)
 
 bool cReadRing::CreateFifo()
 /***********************************************************************************************************************
- * 
+ * errFirstFrame
  * 
  * ********************************************************************************************************************/
 {
@@ -244,9 +244,9 @@ void cReadRing::PrintStats()
 	u_int64_t numPkts_temp = StatFrame->NumPkts;
 	u_int64_t numBytes_temp = StatFrame->NumBytes;
 //	m.unlock();
-	
 	if (numPkts_temp >0) {	
-		unsigned long rate = StatFrame->TriggerCount-StatFrame->LastTriggerCount;
+        StatFrame->TrigTimestamp = GetTimeStpThorAsm();
+		unsigned long rate = (StatFrame->TriggerCount-StatFrame->LastTriggerCount)/((StatFrame->LastTrigTimestamp-StatFrame->TrigTimestamp)*6.666);
 
 		double thpt = ((double)8*(numBytes_temp-StatFrame->lastByte))/(delta*1000.0);
 		if (rate > 0) {
@@ -266,6 +266,7 @@ void cReadRing::PrintStats()
 		StatFrame->lastPkts = numPkts_temp;
 		StatFrame->lastByte = numBytes_temp;
 		StatFrame->LastTriggerCount = StatFrame->TriggerCount;
+        StatFrame->LastTrigTimestamp = StatFrame->TrigTimestamp;
 	}
 	lastTime.tv_sec = endTime.tv_sec, lastTime.tv_usec = endTime.tv_usec;
 }
@@ -285,7 +286,6 @@ void cReadRing::Decodepacket(const struct pfring_pkthdr *h, const u_char *p,bool
     memset((void*)&h->extended_hdr.parsed_pkt, 0, sizeof(struct pkt_parsing_info));
     pfring_parse_pkt((u_char*)p, (struct pfring_pkthdr*)h, 5, 1, 1);
   }
-
 	StatFrame->NbFrameRec++;
 	TriggerCount = GetTriggerCount();
 	StatFrame->NbFrameAsmLost += StatFrame->NbFrameAsm - (StatFrame->NbFrameAsmOld+1);
@@ -342,23 +342,38 @@ void cReadRing::Run()
 			StatFrame->NumBytes += hdr.len+24 /* 8 Preamble + 4 CRC + 12 IFG */;
 
 			struct SharedMemory *TempBuf = (struct SharedMemory *) &buffer[42];
-			SetPacket((uint16_t *) &buffer[42]);
-			
+            
+			SetPacket((uint16_t *) &buffer[42],hdr.len);
 			if (firstframe) {
-				
-				gettimeofday(&startTime, NULL);
-				struct S_HeaderFile HdrFile;
-				HdrFile.ModeFile = FileMode;
-				HdrFile.FrontEndId = GetFeId(); 		//StatFrame->MemFeId;
-				HdrFile.NbSamples	= GetNbSamples();	//NbSamples;
-				HdrFile.CreateTime = startTime;
-				if (Dumper) fwrite(&HdrFile,sizeof(char),sizeof(HdrFile),Dumper);
-				if (DumperError) fwrite(&HdrFile,sizeof(char),sizeof(HdrFile),DumperError);
-				StatFrame->MemFeId = GetFeId();	//(ntohs(FrameHeader->FeIdK30) & 0x7f00) >> 8;
-				StatFrame->MemLen = hdr.len;
-				firstframe = false;
+                if (FrameErrornoTT()) {
+                    gettimeofday(&startTime, NULL);
+                    lastTime = startTime;
+                    struct S_HeaderFile HdrFile;
+                    HdrFile.ModeFile = FileMode;
+                    HdrFile.FrontEndId = GetFeId(); 		//StatFrame->MemFeId;
+                    HdrFile.NbSamples  = GetNbSamples();	//NbSamples;
+                    HdrFile.CreateTime = startTime;
+                    if (Dumper) fwrite(&HdrFile,sizeof(char),sizeof(HdrFile),Dumper);
+                    if (DumperError) fwrite(&HdrFile,sizeof(char),sizeof(HdrFile),DumperError);
+                    StatFrame->MemFeId = GetFeId();	//(ntohs(FrameHeader->FeIdK30) & 0x7f00) >> 8;
+                    StatFrame->MemLen = hdr.len;
+                    firstframe = false;
+                }
+                else {
+                    if (!errFirstFrame) {
+                        cout << "First Frame Error, reset board " << hex << endl;
+                        for (int kk=0;kk<16;kk++) cout << (u16) buffer[kk] << " ";
+                        cout << endl << dec << "  Lg=" << hdr.len << " end frame " << hex << (u16)buffer[hdr.len] << (u16)buffer[hdr.len-1] << endl;
+                        S_ErrorFrame err = GetErrFrame();
+                        cout << "length fragment = " << hdr.len << endl;
+                        cout << FgColor::red() << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" << "Error Frame " << FgColor::white() << endl;
+                        cout << "Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
+                        << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << endl;
+                    }
+                    errFirstFrame = true;
+                    continue;
+                }
 			}
-			
 			
 			StatFrame->NbFrameRec++;
 			
@@ -367,14 +382,19 @@ void cReadRing::Run()
 			
 			bool FrameOk = FrameErrornoTT() ;
 			if (!FrameOk) {
-				S_ErrorFrame err = GetErrFrame();
-				cout << FgColor::red << "Error Frame " << FgColor::white << endl;
-				cout << "Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
-					  << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << endl;
-
-			}
+                if (StatFrame->MemLen != hdr.len) {
+                    //cout << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" <<" Error length frament" << endl;
+                } else {    
+/*                    S_ErrorFrame err = GetErrFrame();
+                    cout << "length fragment = " << hdr.len << endl;
+                    cout << FgColor::red << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" << "Error Frame " << FgColor::white << endl;
+                    cout << "Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
+                        << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << endl;
+ */               }
+            }
+            else {
 			
-			if ((FrameOk) && (StatFrame->MemLen == hdr.len)) {
+			  if (StatFrame->MemLen == hdr.len) {
 				if (StatFrame->MemFeId != GetFeId()) StatFrame->ErrId++;
 				StatFrame->NbFrameAmc = GetNbFrameAmc();
 				NbSamples = GetNbSamples(); 
@@ -401,7 +421,7 @@ void cReadRing::Run()
 					switch (FileMode) {
 						case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),Dumper);break;
 						case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),Dumper);break; 
-						case ALL			:fwrite(&buffer[0],sizeof(char),(hdr.len),Dumper);break; 
+						case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),Dumper);break; 
 					}
 				}
 				
@@ -411,16 +431,17 @@ void cReadRing::Run()
 					ShdSrout->push_back(*hSrout);
 				}
 
-			}
-			else 
-			if ((DumperError) && (!FrameOk)) {
-				switch (FileMode) {
+			  }
+			  else 
+			   if ((DumperError) && (!FrameOk)) {
+				  switch (FileMode) {
 						case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),DumperError);break;
 						case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),DumperError);break; 
-						case ALL			:fwrite(&buffer[0],sizeof(char),(hdr.len),DumperError);break; 
-				}
+						case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),DumperError);break; 
+				  }
 				
-			}
+			  }
+            }
 
 //				pcap_dump((u_char*)DumperError, (struct pcap_pkthdr*)&hdr, buffer);
 		 }
