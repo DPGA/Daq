@@ -252,10 +252,10 @@ void cReadRing::PrintStats()
 		
     double thpt = ((double)8*(numBytes_temp-StatFrame->lastByte))/(delta*1000.0);
     if (rate > 0.0) {
-      cout << "debug: rate and ingredients " << rate 
-	   << "  " << StatFrame->TriggerCount
-	   << "  " << StatFrame->LastTriggerCount
-	   << endl;
+      //cout << "debug: rate and ingredients " << rate 
+      //	   << "  " << StatFrame->TriggerCount << "(" << StatFrame->TriggerCountOrig << ")"
+      //	   << "  " << StatFrame->LastTriggerCount << "(" << StatFrame->LastTriggerCountOrig << ")"
+      //	   << endl;
 		  
       //fprintf(stderr,"=========================\n"
       fprintf(stderr,""
@@ -268,26 +268,25 @@ void cReadRing::PrintStats()
 	      (numPkts_temp + pfringStat.drop),
 	      numPkts_temp == 0 ? 0 : (double)(pfringStat.drop*100)/(double)(numPkts_temp + pfringStat.drop));
       //							fprintf(stderr, " %lu bytes last %lu ",numBytes_temp,lastPkts);
-      fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%5.2f\n", (double)(numPkts_temp -StatFrame->lastPkts), thpt,StatFrame->ErrId,rate);
+      fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%5.2f (%s - %s)\n", (double)(numPkts_temp -StatFrame->lastPkts), thpt,StatFrame->ErrId,rate, StatFrame->TriggerCountOrig.c_str(), StatFrame->LastTriggerCountOrig.c_str());
     }
     StatFrame->lastPkts = numPkts_temp;
     StatFrame->lastByte = numBytes_temp;
     StatFrame->LastTriggerCount = StatFrame->TriggerCount;
+    StatFrame->LastTriggerCountOrig = StatFrame->TriggerCountOrig;
     StatFrame->LastTrigTimestamp = StatFrame->TrigTimestamp;
   }
   lastTime.tv_sec = endTime.tv_sec, lastTime.tv_usec = endTime.tv_usec;
 }
 
 
-// Currently not used apparently
+// Currently not used
 void cReadRing::Decodepacket(const struct pfring_pkthdr *h, const u_char *p,bool first,bool *frameok) 
 /***********************************************************************************************************************
  * 
  * 
  * ********************************************************************************************************************/
 {
-	 
-
   *frameok = true;
 
   if(h->ts.tv_sec == 0) {
@@ -401,7 +400,7 @@ void cReadRing::Run()
 	    */               }
 	}
 	else { // frame is ok -> proceed with treatment
-			
+	  
 	  if (StatFrame->MemLen == hdr.len) {
 	    if (StatFrame->MemFeId != GetFeId()) StatFrame->ErrId++;
 	    StatFrame->NbFrameAmc = GetNbFrameAmc();
@@ -417,9 +416,16 @@ void cReadRing::Run()
 	      hSrout->HistoSrout[hSrout->nohalfDrs][GetSrout()]++;
 	    }
 	    //
-				
-	    if (IsErrorTT()) TriggerCount = GetCptTriggerAsm();
-	    else TriggerCount = GetCptTriggerThor();
+	    StatFrame->NumFrameOk++;
+	    if (IsErrorTT()) {
+	      TriggerCount = GetCptTriggerAsm();
+	      StatFrame->TriggerCountOrig = "ASM";
+	      StatFrame->NumTriggerCountsFromASM++;
+	    }
+	    else {
+	      TriggerCount = GetCptTriggerThor();
+	      StatFrame->TriggerCountOrig = "Thor";
+	    }
 				
 	    StatFrame->NbFrameAsm= GetNbFrameAsm();
 	    StatFrame->NbFrameAsmLost += StatFrame->NbFrameAsm - (StatFrame->NbFrameAsmOld+1);
