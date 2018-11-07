@@ -12,7 +12,7 @@
 #include "GenericTypeDefs.h"
 #include <pfring.h>
 #include "ringshm.h"
-#include "shdmem.h"
+#include "shdmem.h" // contains sStatFrame struct
 #include "decodeframe.h"
 
 

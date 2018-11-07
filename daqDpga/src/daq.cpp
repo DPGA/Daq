@@ -216,8 +216,10 @@ void PrintStat_v1()
 
 {
 	std::vector<class cReadRing *>::iterator it;
+	std::cout << "========================" << std::endl;
 	for (it= pReadRing.begin();it != pReadRing.end();++it) {
 		class cReadRing *pIt = *(it);
+		//std::cout << "debug: in daq.cpp -> PrintStat_v1()" << std::endl;
 		pIt->PrintStats(shdNet);
 	}
 } 
@@ -331,6 +333,7 @@ void my_sigalarm(int sig) {
 										StateAlarm = sPAUSE;
 										printf("%s Send Pause....%s\n",FgColor::yellow(),FgColor::white());
 									}
+			  //std::cout << "debug: in daq.cpp -> my_sigalarm -> case sIDLE" << std::endl;
 									if (RunDaq) PrintStat_v1();
 									break;
 									
@@ -342,6 +345,7 @@ void my_sigalarm(int sig) {
 										}
 										else StateAlarm = sSTART;
 									}
+			  //std::cout << "debug: in daq.cpp -> my_sigalarm -> case sPAUSE" << std::endl;
 									if (RunDaq) PrintStat_v1();
 									break;
 			case sWAIT		: 	StateAlarm = sSTART;
