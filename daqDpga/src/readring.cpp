@@ -380,84 +380,85 @@ void cReadRing::Run()
 	    continue;
 	  }
 	} // end of "if (firstframe) {"
+	else {		
+	  StatFrame->NbFrameRec++;
 			
-	StatFrame->NbFrameRec++;
+	  if (StatFrame->MemLen < hdr.len) StatFrame->UnderSize++;
+	  if (StatFrame->MemLen > hdr.len) StatFrame->OverSize++;
 			
-	if (StatFrame->MemLen < hdr.len) StatFrame->UnderSize++;
-	if (StatFrame->MemLen > hdr.len) StatFrame->OverSize++;
-			
-	bool FrameOk = FrameErrornoTT() ;
-	if (!FrameOk) {
-	  cout << "FRAME NOT OK" << endl;
-	  if (StatFrame->MemLen != hdr.len) {
-	    //cout << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" <<" Error length frament" << endl;
-	  } else {    
-	    /*                    S_ErrorFrame err = GetErrFrame();
-				  cout << "length fragment = " << hdr.len << endl;
-				  cout << FgColor::red << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" << "Error Frame " << FgColor::white << endl;
-				  cout << "Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
-				  << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << endl;
-	    */               }
-	}
-	else { // frame is ok -> proceed with treatment
-	  
-	  if (StatFrame->MemLen == hdr.len) {
-	    if (StatFrame->MemFeId != GetFeId()) StatFrame->ErrId++;
-	    StatFrame->NbFrameAmc = GetNbFrameAmc();
-	    NbSamples = GetNbSamples(); 
-				
-	    // Permet de faire un histo des srout
-	    u16 *buf = GetChannel(0);
-	    unsigned short Ch = GetCh();
-	    if ((Ch >=0) && (Ch < 24)) {
-					
-	      hSrout->noBoard = GetFeId();
-	      hSrout->nohalfDrs = Ch /4;
-	      hSrout->HistoSrout[hSrout->nohalfDrs][GetSrout()]++;
-	    }
-	    //
-	    StatFrame->NumFrameOk++;
-	    if (IsErrorTT()) {
-	      TriggerCount = GetCptTriggerAsm();
-	      StatFrame->TriggerCountOrig = "ASM";
-	      StatFrame->NumTriggerCountsFromASM++;
-	    }
-	    else {
-	      TriggerCount = GetCptTriggerThor();
-	      StatFrame->TriggerCountOrig = "Thor";
-	    }
-				
-	    StatFrame->NbFrameAsm= GetNbFrameAsm();
-	    StatFrame->NbFrameAsmLost += StatFrame->NbFrameAsm - (StatFrame->NbFrameAsmOld+1);
-	    StatFrame->NbFrameAsmOld  = StatFrame->NbFrameAsm;
-	    StatFrame->TriggerCount = TriggerCount;
-	    if (Dumper) {
-	      switch (FileMode) {
-	      case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),Dumper);break;
-	      case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),Dumper);break; 
-	      case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),Dumper);break; 
-	      }
-	    }
-				
-	    if (((TriggerCount) % NbEventDisplay) == 0){
-	      //					printf("Write shm\n");
-	      ShdMem->push_back(*TempBuf);
-	      //					ShdSrout->push_back(*hSrout);
-	    }
-
+	  bool FrameOk = FrameErrornoTT() ;
+	  if (!FrameOk) {
+	    cout << "FRAME NOT OK" << endl;
+	    if (StatFrame->MemLen != hdr.len) {
+	      //cout << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" <<" Error length frament" << endl;
+	    } else {    
+	      /*                    S_ErrorFrame err = GetErrFrame();
+				    cout << "length fragment = " << hdr.len << endl;
+				    cout << FgColor::red << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" << "Error Frame " << FgColor::white << endl;
+				    cout << "Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
+				    << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << endl;
+	      */               }
 	  }
-	  else 
-	    if ((DumperError) && (!FrameOk)) {
-	      switch (FileMode) {
-	      case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),DumperError);break;
-	      case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),DumperError);break; 
-	      case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),DumperError);break; 
+	  else { // frame is ok -> proceed with treatment
+	  
+	    if (StatFrame->MemLen == hdr.len) {
+	      if (StatFrame->MemFeId != GetFeId()) StatFrame->ErrId++;
+	      StatFrame->NbFrameAmc = GetNbFrameAmc();
+	      NbSamples = GetNbSamples(); 
+				
+	      // Permet de faire un histo des srout
+	      u16 *buf = GetChannel(0);
+	      unsigned short Ch = GetCh();
+	      if ((Ch >=0) && (Ch < 24)) {
+					
+		hSrout->noBoard = GetFeId();
+		hSrout->nohalfDrs = Ch /4;
+		hSrout->HistoSrout[hSrout->nohalfDrs][GetSrout()]++;
+	      }
+	      //
+	      StatFrame->NumFrameOk++;
+	      if (IsErrorTT()) {
+		TriggerCount = GetCptTriggerAsm();
+		StatFrame->TriggerCountOrig = "ASM";
+		StatFrame->NumTriggerCountsFromASM++;
+	      }
+	      else {
+		TriggerCount = GetCptTriggerThor();
+		StatFrame->TriggerCountOrig = "Thor";
 	      }
 				
-	    }
-	}
+	      StatFrame->NbFrameAsm= GetNbFrameAsm();
+	      StatFrame->NbFrameAsmLost += StatFrame->NbFrameAsm - (StatFrame->NbFrameAsmOld+1);
+	      StatFrame->NbFrameAsmOld  = StatFrame->NbFrameAsm;
+	      StatFrame->TriggerCount = TriggerCount;
+	      if (Dumper) {
+		switch (FileMode) {
+		case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),Dumper);break;
+		case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),Dumper);break; 
+		case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),Dumper);break; 
+		}
+	      }
+				
+	      if (((TriggerCount) % NbEventDisplay) == 0){
+		//					printf("Write shm\n");
+		ShdMem->push_back(*TempBuf);
+		//					ShdSrout->push_back(*hSrout);
+	      }
 
-	//				pcap_dump((u_char*)DumperError, (struct pcap_pkthdr*)&hdr, buffer);
+	    }
+	    else 
+	      if ((DumperError) && (!FrameOk)) {
+		switch (FileMode) {
+		case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),DumperError);break;
+		case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),DumperError);break; 
+		case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),DumperError);break; 
+		}
+				
+	      }
+	  }
+
+	  //				pcap_dump((u_char*)DumperError, (struct pcap_pkthdr*)&hdr, buffer);
+	}
       }
     } else {
       if(WaitForPacket == 0)  {

@@ -65,6 +65,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <algorithm>
 #include <sys/msg.h>
 #include <time.h>
 #include <sys/wait.h>
@@ -213,8 +214,8 @@ void printHelp(void) {
 
 
 void PrintStat_v1()
-
 {
+  std::sort(pReadRing.begin(), pReadRing.end(), [](cReadRing * one, cReadRing * two){return one->GetStats()->MemFeId < two->GetStats()->MemFeId;});
   std::vector<class cReadRing *>::iterator it;
   std::cout << "========================" << std::endl;
   for (it= pReadRing.begin();it != pReadRing.end();++it) {
