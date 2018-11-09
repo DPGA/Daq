@@ -205,7 +205,7 @@ void cReadRing::PrintStats(ShmRingBuffer<sStatFrame> *shdnet)
   gettimeofday(&endTime, NULL);
   pfring_stat pfringStat;
   pfring_stats(Ring,&pfringStat);
-	
+  
   StatFrame->deltaMillisec 	= delta_time(&endTime, &startTime);
   StatFrame->delta 				= delta_time(&endTime, &lastTime);
   //	StatFrame->DeviceName		= Dev.c_str();
@@ -214,22 +214,16 @@ void cReadRing::PrintStats(ShmRingBuffer<sStatFrame> *shdnet)
   PrintStats();
 }
 
-
-
 void cReadRing::PrintStats()
 /***********************************************************************************************************************
  * 
  * 
  * ********************************************************************************************************************/
 {
-  //cout << "debug: in readring.cpp -> cReadRing::PrintStats()" << endl;
-  
   //if (!DaqStarted) return;
   //cout << "Daq value " << DaqStarted << endl;
   struct timeval endTime;
   std::stringstream sstream; 
-  //stream << std::hex << i;
-  //std::string result = sstream.str(); 
   
   double deltaMillisec,delta;
 
@@ -249,15 +243,8 @@ void cReadRing::PrintStats()
   if (numPkts_temp >0) {	
     StatFrame->TrigTimestamp = GetTimeStpThorAsm();
     double rate = (StatFrame->TriggerCount-StatFrame->LastTriggerCount);///((StatFrame->LastTrigTimestamp-StatFrame->TrigTimestamp)*6.666);
-		
-    double thpt = ((double)8*(numBytes_temp-StatFrame->lastByte))/(delta*1000.0);
+    StatFrame->thpt = ((double)8*(numBytes_temp-StatFrame->lastByte))/(delta*1000.0);
     if (rate > 0.0) {
-      //cout << "debug: rate and ingredients " << rate 
-      //	   << "  " << StatFrame->TriggerCount << "(" << StatFrame->TriggerCountOrig << ")"
-      //	   << "  " << StatFrame->LastTriggerCount << "(" << StatFrame->LastTriggerCountOrig << ")"
-      //	   << endl;
-		  
-      //fprintf(stderr,"=========================\n"
       fprintf(stderr,""
 	      "[%s%.2f%s] [%02x] Abs Stats: [%.2f] [%s%s%s][%lu pkts rcvd][%lu pkts dropped]\t"
 	      "Total Pkts=%lu/Dropped=%.1f %%\t",
@@ -267,8 +254,14 @@ void cReadRing::PrintStats()
 	      numPkts_temp,pfringStat.drop,
 	      (numPkts_temp + pfringStat.drop),
 	      numPkts_temp == 0 ? 0 : (double)(pfringStat.drop*100)/(double)(numPkts_temp + pfringStat.drop));
-      //							fprintf(stderr, " %lu bytes last %lu ",numBytes_temp,lastPkts);
-      fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%5.2f (%s-%s)\n", (double)(numPkts_temp -StatFrame->lastPkts), thpt,StatFrame->ErrId,rate, StatFrame->TriggerCountOrig.c_str(), StatFrame->LastTriggerCountOrig.c_str());
+      fprintf(stderr,
+	      " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%5.2f (%d-%d)\n",
+	      (double)(numPkts_temp -StatFrame->lastPkts),
+	      StatFrame->thpt,
+	      StatFrame->ErrId,
+	      rate,
+	      StatFrame->TriggerCountOrig,
+	      StatFrame->LastTriggerCountOrig);
     }
     StatFrame->lastPkts = numPkts_temp;
     StatFrame->lastByte = numBytes_temp;
@@ -281,11 +274,8 @@ void cReadRing::PrintStats()
 
 
 // Currently not used
+/*
 void cReadRing::Decodepacket(const struct pfring_pkthdr *h, const u_char *p,bool first,bool *frameok) 
-/***********************************************************************************************************************
- * 
- * 
- * ********************************************************************************************************************/
 {
   *frameok = true;
 
@@ -299,6 +289,7 @@ void cReadRing::Decodepacket(const struct pfring_pkthdr *h, const u_char *p,bool
   StatFrame->NbFrameAsmOld  = StatFrame->NbFrameAsm;
 	
 }
+*/
 
 
 void cReadRing::Run() 
@@ -307,8 +298,6 @@ void cReadRing::Run()
  * 
  ***********************************************/
 {
-  
-  
   if(NumCpu > 1) {
     /* Bind this thread to a specific core */
     cpu_set_t cpuset;
@@ -348,7 +337,7 @@ void cReadRing::Run()
 			
 	Running = true;
 	StatFrame->NumPkts++; 
-	StatFrame->NumBytes += hdr.len+24 /* 8 Preamble + 4 CRC + 12 IFG */;
+	StatFrame->NumBytes += hdr.len+24 /* 8 Preamble + 4 CRC + 12 IFG (corresponding to IP header) */;
 
 	struct SharedMemory *TempBuf = (struct SharedMemory *) &buffer[42];
             
@@ -386,28 +375,30 @@ void cReadRing::Run()
 	  }
 	  
 	} // end of "if (firstframe) {"
-	else {
+	//else {
 	  //cout << StatFrame->MemFeId << " StatFrame->NbFrameRec " << StatFrame->NbFrameRec << endl;
 	  StatFrame->NbFrameRec++;
-			
+
+	  // Compare hdr.len to that of first frame
 	  if (StatFrame->MemLen < hdr.len) StatFrame->UnderSize++;
 	  if (StatFrame->MemLen > hdr.len) StatFrame->OverSize++;
 			
 	  bool FrameOk = FrameErrornoTT() ;
 	  if (!FrameOk) {
 	    cout << "FRAME NOT OK" << endl;
+	    /*
 	    if (StatFrame->MemLen != hdr.len) {
-	      //cout << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" <<" Error length frament" << endl;
+	      cout << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" <<" Error length frament" << endl;
 	    } else {    
-	      /*                    S_ErrorFrame err = GetErrFrame();
-				    cout << "length fragment = " << hdr.len << endl;
-				    cout << FgColor::red << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" << "Error Frame " << FgColor::white << endl;
-				    cout << "Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
-				    << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << endl;
-	      */               }
+	      S_ErrorFrame err = GetErrFrame();
+	      cout << "length fragment = " << hdr.len << endl;
+	      cout << FgColor::red << "[0x" << hex << (int) StatFrame->MemFeId << dec << "]" << "Error Frame " << FgColor::white << endl;
+	      cout << "Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
+		   << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << endl;
+	    }
+	    */
 	  }
-	  else { // frame is ok -> proceed with treatment
-	  
+ 	  else { // Frame is ok -> proceed with treatment
 	    if (StatFrame->MemLen == hdr.len) {
 	      if (StatFrame->MemFeId != GetFeId()) StatFrame->ErrId++;
 	      StatFrame->NbFrameAmc = GetNbFrameAmc();
@@ -425,13 +416,15 @@ void cReadRing::Run()
 	      //
 	      StatFrame->NumFrameOk++;
 	      if (IsErrorTT()) {
+		//if (StatFrame->MemFeId == 0x1b) 
+		//cout << hex<<(u16) StatFrame->MemFeId<<dec << "  " << GetNbFrameAsm() << "  " << StatFrame->NbFrameRec << " -> Pattern : " << hex<<GetPattern()<<dec << endl;
 		TriggerCount = GetCptTriggerAsm();
-		StatFrame->TriggerCountOrig = "ASM";
+		StatFrame->TriggerCountOrig = false;
 		StatFrame->NumTriggerCountsFromASM++;
 	      }
 	      else {
 		TriggerCount = GetCptTriggerThor();
-		StatFrame->TriggerCountOrig = "Thor";
+		StatFrame->TriggerCountOrig = true;
 	      }
 				
 	      StatFrame->NbFrameAsm= GetNbFrameAsm();
@@ -451,21 +444,20 @@ void cReadRing::Run()
 		ShdMem->push_back(*TempBuf);
 		//					ShdSrout->push_back(*hSrout);
 	      }
-
 	    }
-	    else 
+	    else {
+	      cout << FgColor::red() << "StatFrame->MemLen != hdr.len" << FgColor::white() << endl;
 	      if ((DumperError) && (!FrameOk)) {
 		switch (FileMode) {
 		case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),DumperError);break;
 		case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),DumperError);break; 
 		case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),DumperError);break; 
 		}
-				
 	      }
+	    }
 	  }
-
 	  //				pcap_dump((u_char*)DumperError, (struct pcap_pkthdr*)&hdr, buffer);
-	  }
+	  //}
       }
     } else {
       if(WaitForPacket == 0)  {
@@ -474,7 +466,7 @@ void cReadRing::Run()
       }
     }
   }
-
+  
   if (Dumper) fclose(Dumper);
   if (DumperError) fclose(DumperError);
    

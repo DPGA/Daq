@@ -15,12 +15,8 @@
 #include "shdmem.h" // contains StatFrame struct
 #include "decodeframe.h"
 
-
-
-
 class cReadRing : public DecodeFrame 
 {
-
  public:
   cReadRing(int index,std::string dev,int caplen,u_int32_t flags,int threads_core_affinity,std::string *File,ShmRingBuffer<SharedMemory> *shdmem,
 	    ShmRingBuffer<sHistoSrout> *shdsrout,bool dumpfile,packet_direction direction,int verbose,int wait_for_packet,unsigned int numcpu);
@@ -36,8 +32,8 @@ class cReadRing : public DecodeFrame
   void SetOnlyHeader(eModefile filemode) {FileMode = filemode;};
   void SetCompress(bool compress) {Compress = compress;};
   std::thread MemberThread() {return std::thread([=] { Run(); });}
-  bool GetRunning () {return (Running);};
-  bool GetStarted () {return (DaqStarted);};
+  bool GetRunning() {return (Running);};
+  bool GetStarted() {return (DaqStarted);};
   u32 GetTriggerCount() {return TriggerCount;};
   bool InitDumpFile(const bool rollover=false);
   bool CreateFifo();
@@ -45,12 +41,10 @@ class cReadRing : public DecodeFrame
   void StartDaq();
   void setFile(string *File,bool wr);
   void noFile();
- protected:
-		
+
  private:
   std::thread the_thread;
   void Run();
-		
   bool InitDumpFileError();
   void Decodepacket(const struct pfring_pkthdr *h, const u_char *p,bool first,bool *frameok);
   const unsigned char BufferStart[2] 	= {0xaa,0xdc};

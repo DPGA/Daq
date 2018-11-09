@@ -215,6 +215,9 @@ void printHelp(void) {
 
 void PrintStat_v1()
 {
+  double thptTot=0;
+  double thptEno1=0;
+  double thptEno2=0;
   std::sort(pReadRing.begin(), pReadRing.end(), [](cReadRing * one, cReadRing * two){return one->GetStats()->MemFeId < two->GetStats()->MemFeId;});
   std::vector<class cReadRing *>::iterator it;
   std::cout << "========================" << std::endl;
@@ -222,7 +225,25 @@ void PrintStat_v1()
     class cReadRing *pIt = *(it);
     //std::cout << "debug: in daq.cpp -> PrintStat_v1()" << std::endl;
     pIt->PrintStats(shdNet);
+    thptTot+=pIt->GetStats()->thpt;
+    std::string eno = pIt->GetDev().substr(0, pIt->GetDev().find("@"));
+    std::cout << "Debug: " << pIt->GetDev() << "  " << eno << std::endl;
+    if(eno=="eno1") {
+      thptEno1+=pIt->GetStats()->thpt;
+    } else if (eno=="eno2") {
+      thptEno2+=pIt->GetStats()->thpt;
+    } else {
+      std::cout << FgColor::red() << "In daq.cpp PrintStat_v1(): we should never end up here --> investigate" << FgColor::white() << std::endl;
+      exit(0);
+    }
   }
+  fprintf(stderr,
+	  "   Total transfer rate = %.2f Mbit/sec (eno1: %.2f Mbit/sec, eno2: %.2f Mbit/sec)",
+	  thptTot,
+	  thptEno1,
+	  thptEno2);
+  
+  
 } 
 
 
@@ -251,7 +272,7 @@ void PrintStatsEnd()
 		
     if (StatFrame->NbFrameRec>0)  Purcent = (double)StatFrame->NbFrameAsmLost/(double)StatFrame->NbFrameRec;
     else Purcent= 0.0;
-    printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%6llu %s (%2.2f %%) \t Frame Amc=%8d \t NumFrameOk=%8d NumTriggerCountsFromASM=%6d (%2.4f %%) ErrId=%8llu Under=%4llu Over=%4llu Tc=%d (%s)\n",
+    printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%6llu %s (%2.2f %%) \t Frame Amc=%8d \t NumFrameOk=%8d NumTriggerCountsFromASM=%6d (%2.4f %%) ErrId=%8llu Under=%4llu Over=%4llu Tc=%d (%d)\n",
 	   pIt->GetDev().c_str(),
 	   StatFrame->MemFeId,
 	   StatFrame->NbFrameRec,
@@ -268,7 +289,7 @@ void PrintStatsEnd()
 	   StatFrame->UnderSize,
 	   StatFrame->OverSize,
 	   pIt->GetTriggerCount(),
-	   StatFrame->TriggerCountOrig.c_str());
+	   StatFrame->TriggerCountOrig);
 		
     SumFrameRec  += StatFrame->NbFrameRec;
     SumFrameAsm  += StatFrame->NbFrameAsm;
@@ -480,8 +501,6 @@ int main(int argc, char* argv[]) {
   
   //printf("%s",BgColor::black);
   
-   
-
   for (u_int NumIfce=0;NumIfce < MAX_IFCE;++NumIfce) {
     device[NumIfce] = NULL;
     bind_mask[NumIfce] = NULL;
