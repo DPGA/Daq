@@ -251,7 +251,7 @@ void PrintStatsEnd()
 		
     if (StatFrame->NbFrameRec>0)  Purcent = (double)StatFrame->NbFrameAsmLost/(double)StatFrame->NbFrameRec;
     else Purcent= 0.0;
-    printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%6llu %s (%2.2f %%) \t Frame Amc=%8d \t NumFrameOk=%8d NumTriggerCountsFromASM=%6d (%2.4f %%) ErrId=%8llu Under=%4llu Over=%4llu Tc=%d\n",
+    printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%6llu %s (%2.2f %%) \t Frame Amc=%8d \t NumFrameOk=%8d NumTriggerCountsFromASM=%6d (%2.4f %%) ErrId=%8llu Under=%4llu Over=%4llu Tc=%d (%s)\n",
 	   pIt->GetDev().c_str(),
 	   StatFrame->MemFeId,
 	   StatFrame->NbFrameRec,
@@ -267,7 +267,8 @@ void PrintStatsEnd()
 	   StatFrame->ErrId,
 	   StatFrame->UnderSize,
 	   StatFrame->OverSize,
-	   pIt->GetTriggerCount());
+	   pIt->GetTriggerCount(),
+	   StatFrame->TriggerCountOrig.c_str());
 		
     SumFrameRec  += StatFrame->NbFrameRec;
     SumFrameAsm  += StatFrame->NbFrameAsm;

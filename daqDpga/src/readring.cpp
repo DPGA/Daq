@@ -268,7 +268,7 @@ void cReadRing::PrintStats()
 	      (numPkts_temp + pfringStat.drop),
 	      numPkts_temp == 0 ? 0 : (double)(pfringStat.drop*100)/(double)(numPkts_temp + pfringStat.drop));
       //							fprintf(stderr, " %lu bytes last %lu ",numBytes_temp,lastPkts);
-      fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%5.2f (%s - %s)\n", (double)(numPkts_temp -StatFrame->lastPkts), thpt,StatFrame->ErrId,rate, StatFrame->TriggerCountOrig.c_str(), StatFrame->LastTriggerCountOrig.c_str());
+      fprintf(stderr, " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%5.2f (%s-%s)\n", (double)(numPkts_temp -StatFrame->lastPkts), thpt,StatFrame->ErrId,rate, StatFrame->TriggerCountOrig.c_str(), StatFrame->LastTriggerCountOrig.c_str());
     }
     StatFrame->lastPkts = numPkts_temp;
     StatFrame->lastByte = numBytes_temp;
@@ -330,14 +330,17 @@ void cReadRing::Run()
   }
   printf("size share memory %lu\n",sizeof(SharedMemory));
   
-  
+  int nnnn = 0;
   while(!do_shutdown) {
     u_char *buffer = NULL;
     
     struct pfring_pkthdr hdr;
     
     if(pfring_recv(Ring, &buffer, 0, &hdr, WaitForPacket) > 0) {
-
+      /*if(nnnn > 200) {
+	continue;
+	}*/
+      nnnn++;
       if ((buffer[12] == 8) && (buffer[13]==0) && (buffer[23] == 17)) {
 			  
 	//printf("%02x%02x  %02x", buffer[12],buffer[13],buffer[23]);
@@ -364,8 +367,10 @@ void cReadRing::Run()
 	    StatFrame->MemFeId = GetFeId();	//(ntohs(FrameHeader->FeIdK30) & 0x7f00) >> 8;
 	    StatFrame->MemLen = hdr.len;
 	    firstframe = false;
+	    printf(" first frame %x %d\n" , (u16)  StatFrame->MemFeId, nnnn);
 	  }
 	  else {
+	    cout << " NONONONONONONO" << endl;
 	    if (!errFirstFrame) {
 	      cout << "First Frame Error, reset board " << hex << endl;
 	      for (int kk=0;kk<16;kk++) cout << (u16) buffer[kk] << " ";
@@ -377,10 +382,12 @@ void cReadRing::Run()
 		   << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << endl;
 	    }
 	    errFirstFrame = true;
-	    continue;
+	    //	    continue;
 	  }
+	  
 	} // end of "if (firstframe) {"
-	else {		
+	else {
+	  //cout << StatFrame->MemFeId << " StatFrame->NbFrameRec " << StatFrame->NbFrameRec << endl;
 	  StatFrame->NbFrameRec++;
 			
 	  if (StatFrame->MemLen < hdr.len) StatFrame->UnderSize++;
@@ -458,7 +465,7 @@ void cReadRing::Run()
 	  }
 
 	  //				pcap_dump((u_char*)DumperError, (struct pcap_pkthdr*)&hdr, buffer);
-	}
+	  }
       }
     } else {
       if(WaitForPacket == 0)  {
