@@ -314,7 +314,7 @@ void cReadRing::Run()
     if((s = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset)) != 0)
       fprintf(stderr, "Error while binding thread %s %d to core %ld: errno=%i\n",Dev.c_str(), Index, core_id, s);
     else {
-      printf("Set thread Interface=%sLastTriggerCount  %d on core %lu/%u\n",Dev.c_str(), Index, core_id, NumCpu);
+      printf("Set thread Interface=%s %d on core %lu/%u\n",Dev.c_str(), Index, core_id, NumCpu);
     }
   }
   printf("size share memory %lu\n",sizeof(SharedMemory));
