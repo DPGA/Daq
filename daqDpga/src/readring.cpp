@@ -446,7 +446,7 @@ void cReadRing::Run()
 	      }
 	    }
 	    else {
-	      cout << FgColor::red() << "StatFrame->MemLen != hdr.len" << FgColor::white() << endl;
+	      //cout << FgColor::red() << "StatFrame->MemLen != hdr.len" << StatFrame->MemLen << "  " << << FgColor::white() << endl;
 	      if ((DumperError) && (!FrameOk)) {
 		switch (FileMode) {
 		case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),DumperError);break;

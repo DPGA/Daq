@@ -227,7 +227,7 @@ void PrintStat_v1()
     pIt->PrintStats(shdNet);
     thptTot+=pIt->GetStats()->thpt;
     std::string eno = pIt->GetDev().substr(0, pIt->GetDev().find("@"));
-    std::cout << "Debug: " << pIt->GetDev() << "  " << eno << std::endl;
+    //std::cout << "Debug: " << pIt->GetDev() << "  " << eno << std::endl;
     if(eno=="eno1") {
       thptEno1+=pIt->GetStats()->thpt;
     } else if (eno=="eno2") {
@@ -477,7 +477,6 @@ int main(int argc, char* argv[]) {
   char *bind_mask[MAX_IFCE];
   char *bpfFilter = NULL; 
   int NbEventDisplay=1000;
-
  
   u_int TotalChannels=0;
 
