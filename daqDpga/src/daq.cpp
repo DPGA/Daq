@@ -80,13 +80,13 @@
 
 //#define  VERSION_DAQ "1.1.0  " __DATE__  " " __TIME__
 
-#define ALARM_SLEEP				1
-#define ALARM_STOP				10
-#define ALARM_START				2
-#define DEFAULT_SNAPLEN       9000 //128
-#define MAX_NUM_THREADS        64
-#define MAX_IFCE					2
-#define MAX_RECORD				30000
+#define ALARM_SLEEP	 1
+#define ALARM_STOP	 10
+#define ALARM_START	 2
+#define DEFAULT_SNAPLEN  9000 //128
+#define MAX_NUM_THREADS  64
+#define MAX_IFCE	 2
+#define MAX_RECORD	 30000
 
 std::vector<class cReadRing *> pReadRing;
 std::vector <std::thread> ThreadList;
@@ -125,8 +125,6 @@ void init_ctrldaq(const char *Addr) {
   /****************************************************************************************/
   /**																												**/
   /****************************************************************************************/
-
-
   s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
   if (s==-1) perror("Socket Transmit failed");
   int disable = 1;
@@ -146,7 +144,6 @@ void init_ctrldaq(const char *Addr) {
     perror("send()");
     exit(errno);
   }
-
 }
 
 void PauseStartFrame(bool start)
@@ -206,7 +203,6 @@ void printHelp(void) {
   printf("Example bin/daqdpga -i eno1 -i eno2 -g 1:2:3:4:5:6:7:8 -g 20:21:22:23:24:25:26:27 -a -o 1 -f /datas1/run0005\n");
 }
 
-
 void PrintStat_v1()
 {
   double thptTot=0;
@@ -236,7 +232,7 @@ void PrintStat_v1()
     }
   }
   fprintf(stderr,
-	  "%s# ASM Boards = %d   Total transfer rate = %.2f Mbit/sec (eno1: %.2f Mbit/sec, eno2: %.2f Mbit/sec)%s\n",
+	  "%sNumber of ASM Boards = %d   Total transfer rate = %.2f Mbit/sec (eno1: %.2f Mbit/sec, eno2: %.2f Mbit/sec)%s\n",
 	  FgColor::magenta(),
 	  n,
 	  thptTot,
@@ -254,7 +250,6 @@ void PrintStatsEnd()
  * 
  * ********************************************************/ 
 {
-
   u64 SumFrameRec=0;
   u64 SumFrameAsm=0;
   u64 SumFRameLost=0;
@@ -307,8 +302,6 @@ void PrintStatsEnd()
 	
 }
 
-
-
 void sigproc(int sig) {
   /**********************************************************
    *
@@ -341,8 +334,6 @@ void sigproc(int sig) {
   if (shdsrout) delete (shdsrout);
   exit(0);
 }
-
-
 
 void my_sigalarm(int sig) {
   /****************************************************************
@@ -409,7 +400,6 @@ int parse_bpf_filter(char *filter_buffer, u_int caplen) {
   return 0;
 }
 
-
 void IpcReceivedMsg()
 {
   /************************************************************************
@@ -450,7 +440,6 @@ void IpcReceivedMsg()
     std::cout << "Value Daq  " << RunDaq << std::endl;
   }
 }
-
 
 int main(int argc, char* argv[]) {
   /************************************************************************
@@ -513,7 +502,7 @@ int main(int argc, char* argv[]) {
   
   //  pfring *ring[MAX_NUM_RX_CHANNELS];
 
-  int threads_core_affinity[MAX_IFCE][MAX_NUM_RX_CHANNELS];
+  int threads_core_affinity[MAX_IFCE][MAX_NUM_RX_CHANNELS]; // MAX_NUM_RX_CHANNELS defined in pfring.h
 
   memset(threads_core_affinity, -1, sizeof(threads_core_affinity));
   startTime.tv_sec = 0;
@@ -602,31 +591,25 @@ int main(int argc, char* argv[]) {
   }
 
   bind2node(threads_core_affinity[0][0]);
-
-
 	
   init_ctrldaq("192.168.2.50"); 
 	
   flags |= PF_RING_PROMISC; /* hardcode: promisc=1 */
   flags |= PF_RING_ZC_SYMMETRIC_RSS;  /* Note that symmetric RSS is ignored by non-ZC drivers */
   if(use_extended_pkt_header) flags |= PF_RING_LONG_HEADER; 
-	
-	
+  
   if(bpfFilter != NULL) {
     if (parse_bpf_filter(bpfFilter, snaplen) == 0) {
       printf("Successfully set BPF filter '%s'\n", bpfFilter);
     } else
       printf("Error compiling BPF filter '%s'\n", bpfFilter);
-  } 
-
-	
-	
+  }
+  
   int base = 0;
   shdmem = new ShmRingBuffer<SharedMemory>(CAPACITY,true,SHM_ASM_DATA);
   shdNet = new ShmRingBuffer<sStatFrame>(CAPACITY,true,SHM_NETWORK);
   shdsrout = new ShmRingBuffer<sHistoSrout>(CAPACITY,true,SHM_SROUT);
-	
-	
+  
   printf("Shm Library %s\n decodeFrame library %s\n",shdmem->getVersion().c_str(),"toto");
 	
   printf("Size Stats net %lu\n",sizeof (sStatFrame));
