@@ -173,7 +173,6 @@ void PauseStartFrame(bool start)
   }
 }
 
-
 void VersionInfo()
 {
   std::cout << FgColor::yellow() << "Program Daq " << __PROGRAM_VERSION_STRING__ << "  Gitrev " << __GITVER__
@@ -183,13 +182,9 @@ void VersionInfo()
   std::cout << "DecodeFrame Library " << getVersionDecodeFrame() << std::endl;
 }
 
-
-
 void printHelp(void) {
-	
   VersionInfo();
 
-	
   printf("\n-h              Print this help\n");
   printf("-a              Active packet wait\n");
   printf("-e <direction>  0=RX+TX, 1=RX only, 2=TX only\n");
@@ -209,7 +204,6 @@ void printHelp(void) {
   printf("-z 					compress file\n");
   printf("-o					Record Mode 0=Header,1=Rawdata+header,2=Rawdata+header+ethernet header\n\n\n");
   printf("Example bin/daqdpga -i eno1 -i eno2 -g 1:2:3:4:5:6:7:8 -g 20:21:22:23:24:25:26:27 -a -o 1 -f /datas1/run0005\n");
-
 }
 
 
@@ -218,13 +212,14 @@ void PrintStat_v1()
   double thptTot=0;
   double thptEno1=0;
   double thptEno2=0;
+  int n = 0;
   std::sort(pReadRing.begin(), pReadRing.end(), [](cReadRing * one, cReadRing * two){return one->GetStats()->MemFeId < two->GetStats()->MemFeId;});
   std::vector<class cReadRing *>::iterator it;
   std::cout << "========================" << std::endl;
   for (it= pReadRing.begin();it != pReadRing.end();++it) {
     class cReadRing *pIt = *(it);
     //std::cout << "debug: in daq.cpp -> PrintStat_v1()" << std::endl;
-    pIt->PrintStats(shdNet);
+    bool hasPkts = pIt->PrintStats(shdNet);
     thptTot+=pIt->GetStats()->thpt;
     std::string eno = pIt->GetDev().substr(0, pIt->GetDev().find("@"));
     //std::cout << "Debug: " << pIt->GetDev() << "  " << eno << std::endl;
@@ -236,12 +231,18 @@ void PrintStat_v1()
       std::cout << FgColor::red() << "In daq.cpp PrintStat_v1(): we should never end up here --> investigate" << FgColor::white() << std::endl;
       exit(0);
     }
+    if(hasPkts) {
+      ++n;
+    }
   }
   fprintf(stderr,
-	  "   Total transfer rate = %.2f Mbit/sec (eno1: %.2f Mbit/sec, eno2: %.2f Mbit/sec)",
+	  "%s# ASM Boards = %d   Total transfer rate = %.2f Mbit/sec (eno1: %.2f Mbit/sec, eno2: %.2f Mbit/sec)%s\n",
+	  FgColor::magenta(),
+	  n,
 	  thptTot,
 	  thptEno1,
-	  thptEno2);
+	  thptEno2,
+	  FgColor::white());
   
   
 } 
@@ -272,7 +273,7 @@ void PrintStatsEnd()
 		
     if (StatFrame->NbFrameRec>0)  Purcent = (double)StatFrame->NbFrameAsmLost/(double)StatFrame->NbFrameRec;
     else Purcent= 0.0;
-    printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%6llu %s (%2.2f %%) \t Frame Amc=%8d \t NumFrameOk=%8d NumTriggerCountsFromASM=%6d (%2.4f %%) ErrId=%8llu Under=%4llu Over=%4llu Tc=%d (%d)\n",
+    printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%6llu %s (%2.2f %%) \t Frame Amc=%8d \t NumFrameOk=%8d NumTriggerCountsFromASM=%s%6d%s (%2.4f %%) ErrId=%8llu Under=%4llu Over=%4llu Tc=%d (%d)\n",
 	   pIt->GetDev().c_str(),
 	   StatFrame->MemFeId,
 	   StatFrame->NbFrameRec,
@@ -283,7 +284,9 @@ void PrintStatsEnd()
 	   Purcent*100,
 	   StatFrame->NbFrameAmc,
 	   StatFrame->NumFrameOk,
+	   FgColor::red(),
 	   StatFrame->NumTriggerCountsFromASM,
+	   FgColor::white(),
 	   StatFrame->NumTriggerCountsFromASM/float(StatFrame->NumFrameOk)*100,
 	   StatFrame->ErrId,
 	   StatFrame->UnderSize,
@@ -424,9 +427,12 @@ void IpcReceivedMsg()
       printf( "received '%lu' %s@ %d \n", msg.nMsgType,msg.arg.sText,msg.cmd);
       switch (msg.cmd) {
       case IPCNONE : std::cout << "None" << std::endl;break;
-      case IPCDAQ	 : for (auto &it : pReadRing) {
-	  it->setNbEventDisplay(msg.arg.val);
-	  it->StartDaq();
+      case IPCDAQ	 :
+	if (!RunDaq) {
+	  for (auto &it : pReadRing) {
+	    it->setNbEventDisplay(msg.arg.val);
+	    it->StartDaq();
+	  }
 	}
 	RunDaq = true;
 	std::cout << "Daq  " << RunDaq << std::endl;

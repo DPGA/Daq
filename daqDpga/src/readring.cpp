@@ -194,7 +194,7 @@ bool cReadRing::CreateFifo()
   return(true);
 }
 
-void cReadRing::PrintStats(ShmRingBuffer<sStatFrame> *shdnet)
+bool cReadRing::PrintStats(ShmRingBuffer<sStatFrame> *shdnet)
 /***********************************************************************************************************************
  * 
  * 
@@ -211,15 +211,16 @@ void cReadRing::PrintStats(ShmRingBuffer<sStatFrame> *shdnet)
   //	StatFrame->DeviceName		= Dev.c_str();
   StatFrame->DropsPkts			= pfringStat.drop;
   shdnet->push_back(*StatFrame);
-  PrintStats();
+  return PrintStats();
 }
 
-void cReadRing::PrintStats()
+bool cReadRing::PrintStats()
 /***********************************************************************************************************************
  * 
  * 
  * ********************************************************************************************************************/
 {
+  bool hasPkts = true;
   //if (!DaqStarted) return;
   //cout << "Daq value " << DaqStarted << endl;
   struct timeval endTime;
@@ -248,7 +249,7 @@ void cReadRing::PrintStats()
       fprintf(stderr,""
 	      "[%s%.2f%s] [%02x] Abs Stats: [%.2f] [%s%s%s][%lu pkts rcvd][%lu pkts dropped]\t"
 	      "Total Pkts=%lu/Dropped=%.1f %%\t",
-	      FgColor::blue(),deltaMillisec/1000,FgColor::white(), 
+	      FgColor::green(),deltaMillisec/1000,FgColor::white(), 
 	      StatFrame->MemFeId,delta,
 	      FgColor::green(),Dev.c_str(),FgColor::white(), 
 	      numPkts_temp,pfringStat.drop,
@@ -268,8 +269,11 @@ void cReadRing::PrintStats()
     StatFrame->LastTriggerCount = StatFrame->TriggerCount;
     StatFrame->LastTriggerCountOrig = StatFrame->TriggerCountOrig;
     StatFrame->LastTrigTimestamp = StatFrame->TrigTimestamp;
+  } else {
+    hasPkts = false;
   }
   lastTime.tv_sec = endTime.tv_sec, lastTime.tv_usec = endTime.tv_usec;
+  return hasPkts;
 }
 
 
@@ -330,7 +334,7 @@ void cReadRing::Run()
 	continue;
 	}*/
       nnnn++;
-      if ((buffer[12] == 8) && (buffer[13]==0) && (buffer[23] == 17)) {
+      //if ((buffer[12] == 8) && (buffer[13]==0) && (buffer[23] == 17)) {
 			  
 	//printf("%02x%02x  %02x", buffer[12],buffer[13],buffer[23]);
 	//printf("\n");
@@ -458,7 +462,7 @@ void cReadRing::Run()
 	  }
 	  //				pcap_dump((u_char*)DumperError, (struct pcap_pkthdr*)&hdr, buffer);
 	  //}
-      }
+	  //}
     } else {
       if(WaitForPacket == 0)  {
 	usleep(1); //sched_yield();

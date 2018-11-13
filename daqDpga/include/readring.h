@@ -25,8 +25,8 @@ class cReadRing : public DecodeFrame
   void Stop();
   //		void SendPauseDaq();
   struct sStatFrame *GetStats() {return StatFrame;};
-  void PrintStats();
-  void PrintStats(ShmRingBuffer<sStatFrame> *shdnet);
+  bool PrintStats();
+  bool PrintStats(ShmRingBuffer<sStatFrame> *shdnet);
   std::string GetDev() {return Dev;};
   u_int GetIndex() {return Index;};
   void SetOnlyHeader(eModefile filemode) {FileMode = filemode;};
