@@ -434,6 +434,8 @@ void IpcReceivedMsg()
 	std::cout << "interval " << msg.arg.val << std::endl;break;
       case IPCRECORD   : s = msg.arg.sText;for (auto &it : pReadRing) it->setFile(&s,true); break;
       case IPCWITHOUTFILE : for (auto &it : pReadRing) it->noFile(); break;
+      case IPCNBSAMPLES :  for (auto &it : pReadRing) it->setNbSamples(msg.arg.val);
+	std::cout << "NbSamples " << msg.arg.val << std::endl;break;
       };
     }
     else usleep(100);

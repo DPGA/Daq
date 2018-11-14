@@ -41,6 +41,7 @@ class cReadRing : public DecodeFrame
   void StartDaq();
   void setFile(string *File,bool wr);
   void noFile();
+  void setNbSamples(uint16_t nbsamples);
 
  private:
   std::thread the_thread;
