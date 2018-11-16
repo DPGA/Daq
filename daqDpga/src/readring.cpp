@@ -243,10 +243,11 @@ bool cReadRing::PrintStats()
   pfring_stats(Ring,&pfringStat);
 	
   //	m.lock();
-  u_int64_t numPkts_temp = StatFrame->NbFrameRec;
+  //u_int64_t numPkts_temp = StatFrame->NbFrameRec;
   u_int64_t numBytes_temp = StatFrame->NumBytes;
   //	m.unlock();
-  if (numPkts_temp >0) {	
+  //cout << hex <<(u16) StatFrame->MemFeId<< dec << "   -> StatFrame->NbFrameRec = " << StatFrame->NbFrameRec << endl;
+  if (StatFrame->NbFrameRec > StatFrame->NbFrameRecPrev) {	
     StatFrame->TrigTimestamp = GetTimeStpThorAsm();
     double rate = (StatFrame->TriggerCount-StatFrame->LastTriggerCount);///((StatFrame->LastTrigTimestamp-StatFrame->TrigTimestamp)*6.666);
     StatFrame->thpt = ((double)8*(numBytes_temp-StatFrame->lastByte))/(delta*1000.0);
@@ -257,19 +258,19 @@ bool cReadRing::PrintStats()
 	      FgColor::green(),deltaMillisec/1000,FgColor::white(), 
 	      StatFrame->MemFeId,delta,
 	      FgColor::green(),Dev.c_str(),FgColor::white(), 
-	      numPkts_temp,pfringStat.drop,
-	      (numPkts_temp + pfringStat.drop),
-	      numPkts_temp == 0 ? 0 : (double)(pfringStat.drop*100)/(double)(numPkts_temp + pfringStat.drop));
+	      StatFrame->NbFrameRec,pfringStat.drop,
+	      (StatFrame->NbFrameRec + pfringStat.drop),
+	      StatFrame->NbFrameRec == 0 ? 0 : (double)(pfringStat.drop*100)/(double)(StatFrame->NbFrameRec - StatFrame->NbFrameRecPrev + pfringStat.drop));
       fprintf(stderr,
 	      " [%.1f pkt/sec - %.2f Mbit/sec] %llu Rate=%5.2f (%d-%d)\n",
-	      (double)(numPkts_temp -StatFrame->lastPkts),
+	      (double)(StatFrame->NbFrameRec-StatFrame->NbFrameRecPrev),
 	      StatFrame->thpt,
 	      StatFrame->ErrId,
 	      rate,
 	      StatFrame->TriggerCountOrig,
 	      StatFrame->LastTriggerCountOrig);
     }
-    StatFrame->lastPkts = numPkts_temp;
+    StatFrame->NbFrameRecPrev = StatFrame->NbFrameRec;
     StatFrame->lastByte = numBytes_temp;
     StatFrame->LastTriggerCount = StatFrame->TriggerCount;
     StatFrame->LastTriggerCountOrig = StatFrame->TriggerCountOrig;
@@ -280,26 +281,6 @@ bool cReadRing::PrintStats()
   lastTime.tv_sec = endTime.tv_sec, lastTime.tv_usec = endTime.tv_usec;
   return hasPkts;
 }
-
-
-// Currently not used
-/*
-  void cReadRing::Decodepacket(const struct pfring_pkthdr *h, const u_char *p,bool first,bool *frameok) 
-  {
-  *frameok = true;
-
-  if(h->ts.tv_sec == 0) {
-  memset((void*)&h->extended_hdr.parsed_pkt, 0, sizeof(struct pkt_parsing_info));
-  pfring_parse_pkt((u_char*)p, (struct pfring_pkthdr*)h, 5, 1, 1);
-  }
-  StatFrame->NbFrameRec++;
-  TriggerCount = GetTriggerCount();
-  StatFrame->NbFrameAsmLost += StatFrame->NbFrameAsm - (StatFrame->NbFrameAsmOld+1);
-  StatFrame->NbFrameAsmOld  = StatFrame->NbFrameAsm;
-	
-  }
-*/
-
 
 void cReadRing::Run() 
 /************************************************
@@ -362,8 +343,37 @@ void cReadRing::Run()
 	       << ", hdr.len=" << hdr.len
 	       << ", StatFrame->MemLen=" << StatFrame->MemLen
 	       << endl;
-	  for (int kk=42;kk<116;kk+=2)
-	    cout << "  -> buffer[" << kk << "] = " << hex<< (u16) buffer[kk] << (u16) buffer[kk+1]<<dec<< endl;
+	  for (int kk=42;kk<116;kk+=2) {
+	    cout << "  -> buffer[" << kk << "] = " << hex<< (u16) buffer[kk] << (u16) buffer[kk+1];
+	    if(kk == 42) {
+	      cout << "  (<- 0x1230 (SoF))";
+	    } else if(kk == 48) {
+	      cout << "  (<- 0xFEIdK30)";
+	    } else if(kk == 62) {
+	      cout << "  (<- 0xcafe)";
+	    } else if(kk == 64) {
+	      cout << "  (<- 0xdeca)";
+	    } else if(kk == 66) {
+	      cout << "  (<- 0x0123)";
+	    } else if(kk == 68) {
+	      cout << "  (<- 0x4567)";
+	    } else if(kk == 70) {
+	      cout << "  (<- 0x89ab)";
+	    } else if(kk == 72) {
+	      cout << "  (<- 0xcdef)";
+	    } else if(kk == 90) {
+	      cout << "  (<- ThorTT)";
+	    } else if(kk == 92) {
+	      cout << "  (<- PatternMsb)";
+	    } else if(kk == 94) {
+	      cout << "  (<- PatternOsb)";
+	    } else if(kk == 96) {
+	      cout << "  (<- PatternLsb)";
+	    } else if(kk == 98) {
+	      cout << "  (<- Oxbobo)";
+	    } 
+	    cout << dec << endl;
+	  }
 	  S_ErrorFrame err = GetErrFrame();
 	  cout << "  -> length fragment = " << hdr.len << "  StatFrame->MemLen = " << StatFrame->MemLen << endl;
 	  cout << "  -> Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "

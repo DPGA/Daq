@@ -208,14 +208,14 @@ void PrintStat_v1()
   double thptTot=0;
   double thptEno1=0;
   double thptEno2=0;
-  int n = 0;
+  int nBoards = 0;
   std::sort(pReadRing.begin(), pReadRing.end(), [](cReadRing * one, cReadRing * two){return one->GetStats()->MemFeId < two->GetStats()->MemFeId;});
   std::vector<class cReadRing *>::iterator it;
   std::cout << "========================" << std::endl;
   for (it= pReadRing.begin();it != pReadRing.end();++it) {
     class cReadRing *pIt = *(it);
-    //std::cout << "debug: in daq.cpp -> PrintStat_v1()" << std::endl;
     bool hasPkts = pIt->PrintStats(shdNet);
+    //std::cout << "debug: in daq.cpp -> PrintStat_v1() " << std::hex<<(u16) pIt->GetStats()->MemFeId<<std::dec << "  " << hasPkts << "  " << nBoards << std::endl;
     thptTot+=pIt->GetStats()->thpt;
     std::string eno = pIt->GetDev().substr(0, pIt->GetDev().find("@"));
     //std::cout << "Debug: " << pIt->GetDev() << "  " << eno << std::endl;
@@ -228,19 +228,17 @@ void PrintStat_v1()
       exit(0);
     }
     if(hasPkts) {
-      ++n;
+      ++nBoards;
     }
   }
   fprintf(stderr,
 	  "%sNumber of ASM Boards = %d   Total transfer rate = %.2f Mbit/sec (eno1: %.2f Mbit/sec, eno2: %.2f Mbit/sec)%s\n",
 	  FgColor::magenta(),
-	  n,
+	  nBoards,
 	  thptTot,
 	  thptEno1,
 	  thptEno2,
 	  FgColor::white());
-  
-  
 } 
 
 
