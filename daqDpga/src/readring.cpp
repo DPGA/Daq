@@ -36,10 +36,11 @@
 #include "decodeframe.h"
 
 
+
 using namespace std;
 double delta_time (struct timeval * now,struct timeval * before);
 
-
+/*
 static int gzip_cookie_write(void *cookie, const char *buf, int size) {
   return gzwrite((gzFile)cookie, (voidpc)buf, (unsigned) size);
 }
@@ -47,12 +48,12 @@ static int gzip_cookie_write(void *cookie, const char *buf, int size) {
 static int gzip_cookie_close(void *cookie) {
   return gzclose((gzFile)cookie);
 }
-
+*/
 pcap_dumper_t *dump_open(pcap_t *pcap, const char *path, int want_gzip) {
 	
   if (want_gzip) {
-    gzFile z = gzopen(path, "w");
-    FILE *fp ;//= funopen(z, NULL, gzip_cookie_write, NULL, gzip_cookie_close);
+ //   gzFile z = gzopen(path, "w");
+    FILE *fp = NULL;//= funopen(z, NULL, gzip_cookie_write, NULL, gzip_cookie_close);
     return pcap_dump_fopen(pcap, fp);
   } else {
     return pcap_dump_open(pcap, path);
@@ -60,18 +61,19 @@ pcap_dumper_t *dump_open(pcap_t *pcap, const char *path, int want_gzip) {
 }
 
 cReadRing::cReadRing(int index,string dev,int caplen,u_int32_t flags,int threads_core_affinity,string *File,ShmRingBuffer<SharedMemory> *shdmem,
-		     ShmRingBuffer<sHistoSrout> *shdrout,bool dumpfile,packet_direction direction,int verbose,int wait_for_packet,unsigned int numcpu) :DecodeFrame(),the_thread()
-																			/************************************************
-																			 * 
-																			 * 
-																			 ***********************************************/
+		     ShmRingBuffer<sHistoSrout> *shdrout,bool dumpfile,packet_direction direction,int wait_for_packet,unsigned int numcpu) :
+                     DecodeFrame(),the_thread()
+																			
+/************************************************
+* 
+* 
+***********************************************/
 {
   int rc;
   ShdMem 	= shdmem;
   ShdSrout = shdrout;
   Index 	= index;
   Dev 		= dev + "@" + to_string(index);
-  Verbose 	= verbose;
   ThreadsCoreAffinity = threads_core_affinity;
   DumpFile = dumpfile;
   Direction = direction;
@@ -95,24 +97,24 @@ cReadRing::cReadRing(int index,string dev,int caplen,u_int32_t flags,int threads
   Ring = pfring_open(Dev.c_str(), caplen, flags);
 
   if(Ring == NULL) {
-    printf("Error Openning Ring %s ",Dev.c_str());
+    log(logERROR,true) << "Error Openning Ring %s " << Dev.c_str();
   }
-	
-  if (verbose) printf("Ring =%p\n",Ring);
+  log(logDEBUG4,true) << "Ring = " << Ring ;
 	
   std::string AppName = "Daq DPGA Multi Channel " + Dev;
-  if (pfring_set_application_name(Ring, (char *) AppName.c_str()) < 0)
-    printf("Error Apllication Name\n");
+  if (pfring_set_application_name(Ring, (char *) AppName.c_str()) < 0) {
+      log(logERROR,true) << "Error Apllication Name";
+  }
 
-  if((rc = pfring_set_direction(Ring, direction)) != 0)
-    fprintf(stderr, "pfring_set_direction returned %d [direction=%d] (you can't capture TX with ZC)\n", rc, direction);
-	
+  if((rc = pfring_set_direction(Ring, direction)) != 0) {
+    log(logERROR,true) << "pfring_set_direction returned " << rc << " [direction=" << direction << "d] (you can't capture TX with ZC)";
+  }
   pfring_enable_ring(Ring);
 
   StatFrame = (struct sStatFrame *) malloc(sizeof(sStatFrame)); 
   hSrout = (struct sHistoSrout *) malloc(sizeof(sHistoSrout));
   memset(hSrout,0,sizeof(sHistoSrout));
-  if (StatFrame == NULL) printf("Error allocating memory StatFrame\n");
+  if (StatFrame == NULL) {log(logERROR,true) << "Error allocating memory StatFrame";}
   memset(StatFrame,0,sizeof(sStatFrame));
   DaqStarted = false;
 	
@@ -156,7 +158,7 @@ void cReadRing::setFile(string *File,bool wr)
 void cReadRing::setNbSamples(uint16_t nbsamples)
 {
   NbSamples = nbsamples;
-  cout << "In cReadRing::setNbSamples(...): NbSamples=" << NbSamples << endl;
+  log(logINFO,true) << "In cReadRing::setNbSamples(...): NbSamples=" << NbSamples;
 }
 
 
@@ -171,7 +173,8 @@ cReadRing::~cReadRing()
 	pfring_shutdown(Ring);
 	if (Dumper) pcap_dump_close(Dumper);errFirstFrame
 	if (DumperError) pcap_dump_close(DumperError);
-  */	std::cout << "Destroy thread " << Dev << endl;
+  */
+    log(logINFO,true) << "Destroy thread " << Dev;
   //	std::terminate();
 }
 
@@ -253,8 +256,8 @@ bool cReadRing::PrintStats()
     StatFrame->thpt = ((double)8*(numBytes_temp-StatFrame->lastByte))/(delta*1000.0);
     if (rate > 0.0) {
       fprintf(stderr,""
-	      "[%s%.2f%s] [%02x] Abs Stats: [%.2f] [%s%s%s][%lu pkts rcvd][%lu pkts dropped]\t"
-	      "Total Pkts=%lu/Dropped=%.1f %%\t",
+	      "[%s%.2f%s] [%02x] Abs Stats: [%.2f] [%s%s%s][%llu pkts rcvd][%lu pkts dropped]\t"
+	      "Total Pkts=%llu/Dropped=%.1f %%\t",
 	      FgColor::green(),deltaMillisec/1000,FgColor::white(), 
 	      StatFrame->MemFeId,delta,
 	      FgColor::green(),Dev.c_str(),FgColor::white(), 
@@ -304,11 +307,11 @@ void cReadRing::Run()
     if((s = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset)) != 0)
       fprintf(stderr, "Error while binding thread %s %d to core %ld: errno=%i\n",Dev.c_str(), Index, core_id, s);
     else {
-      printf("Set thread Interface=%s %d on core %lu/%u\n",Dev.c_str(), Index, core_id, NumCpu);
+      log(logINFO,true) << "Set thread Interface=" << Dev.c_str() << " " << Index << " on core " << core_id << "/" << NumCpu;
     }
   } // END OF "if(NumCpu > 1)"
   
-  printf("size share memory %lu\n",sizeof(SharedMemory));
+  log(logINFO,true) << "size share memory " << sizeof(SharedMemory);
   
   while(!do_shutdown) {
     u_char *buffer = NULL;
@@ -336,48 +339,47 @@ void cReadRing::Run()
 	       << ", StatFrame->MemLen (="  << StatFrame->MemLen << ") != hdr.len - 42 (=" << hdr.len - 42 << ")" << FgColor::white() << endl;
 	}
 	if (!frameErrornoTT) {
-	  cout << FgColor::yellow()
-	       << "Header integrity failed:"
-	       << " ASM board=0x" << hex<<(int) StatFrame->MemFeId<<dec
-	       << ", NbFrameRec=" << StatFrame->NbFrameRec
-	       << ", hdr.len=" << hdr.len
-	       << ", StatFrame->MemLen=" << StatFrame->MemLen
-	       << endl;
+	  log(logDEBUG1,true) << FgColor::yellow()
+                     << "Header integrity failed:"
+                     << " ASM board=0x" << hex<<(int) StatFrame->MemFeId<<dec
+                     << ", NbFrameRec=" << StatFrame->NbFrameRec
+                     << ", hdr.len=" << hdr.len
+                     << ", StatFrame->MemLen=" << StatFrame->MemLen;
 	  for (int kk=42;kk<116;kk+=2) {
-	    cout << "  -> buffer[" << kk << "] = " << hex<< (u16) buffer[kk] << (u16) buffer[kk+1];
+	    log(logDEBUG2,false) << "  -> buffer[" << kk << "] = " << hex<< (u16) buffer[kk] << (u16) buffer[kk+1];
 	    if(kk == 42) {
-	      cout << "  (<- 0x1230 (SoF))";
+	      log(logDEBUG2,true) << "  (<- 0x1230 (SoF))";
 	    } else if(kk == 48) {
-	      cout << "  (<- 0xFEIdK30)";
+	      log(logDEBUG2,true) << "  (<- 0xFEIdK30)";
 	    } else if(kk == 62) {
-	      cout << "  (<- 0xcafe)";
+	      log(logDEBUG2,true) << "  (<- 0xcafe)";
 	    } else if(kk == 64) {
-	      cout << "  (<- 0xdeca)";
+	      log(logDEBUG2,true) << "  (<- 0xdeca)";
 	    } else if(kk == 66) {
-	      cout << "  (<- 0x0123)";
+	      log(logDEBUG2,true) << "  (<- 0x0123)";
 	    } else if(kk == 68) {
-	      cout << "  (<- 0x4567)";
+	      log(logDEBUG2,true) << "  (<- 0x4567)";
 	    } else if(kk == 70) {
-	      cout << "  (<- 0x89ab)";
+	      log(logDEBUG2,true) << "  (<- 0x89ab)";
 	    } else if(kk == 72) {
-	      cout << "  (<- 0xcdef)";
+	      log(logDEBUG2,true) << "  (<- 0xcdef)";
 	    } else if(kk == 90) {
-	      cout << "  (<- ThorTT)";
+	      log(logDEBUG2,true) << "  (<- ThorTT)";
 	    } else if(kk == 92) {
-	      cout << "  (<- PatternMsb)";
+	      log(logDEBUG2,true) << "  (<- PatternMsb)";
 	    } else if(kk == 94) {
-	      cout << "  (<- PatternOsb)";
+	      log(logDEBUG2,true) << "  (<- PatternOsb)";
 	    } else if(kk == 96) {
-	      cout << "  (<- PatternLsb)";
+	      log(logDEBUG2,true) << "  (<- PatternLsb)";
 	    } else if(kk == 98) {
-	      cout << "  (<- Oxbobo)";
+	      log(logDEBUG2,true) << "  (<- Oxbobo)";
 	    } 
-	    cout << dec << endl;
+	    //cout << dec << endl;
 	  }
 	  S_ErrorFrame err = GetErrFrame();
-	  cout << "  -> length fragment = " << hdr.len << "  StatFrame->MemLen = " << StatFrame->MemLen << endl;
-	  cout << "  -> Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
-	       << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << FgColor::white() << endl;
+	  log(logDEBUG2,true) << "  -> length fragment = " << hdr.len << "  StatFrame->MemLen = " << StatFrame->MemLen;
+	  log(logDEBUG2,true) << "  -> Sof " << err.ErrSoF << " Cafedeca " << err.ErrCafeDeca << " Bobo " << err.ErrBobo << " SOC "
+                          << err.ErrSoc << " Crc " << err.ErrCrc << " eof " << err.ErrEoF << " TT " << err.ErrTT << FgColor::white();
 	}
       }
       /////////////////////////////////////////////////////////
@@ -395,20 +397,20 @@ void cReadRing::Run()
 	HdrFile.NbSamples  = NbSamples; //GetNbSamples();	
 	HdrFile.CreateTime = startTime;
 
-	cout << FgColor::green()
-	     << "Start first frame for ASM board 0x"
-	     << hex<<(int) StatFrame->MemFeId<<dec
-	     << FgColor::white() << endl;
+	log(logDEBUG1,true) << FgColor::green()
+                        << "Start first frame for ASM board 0x"
+                        << hex<<(int) StatFrame->MemFeId<<dec
+                        << FgColor::white();
 	
 	if (frameErrornoTT) {
 	  gettimeofday(&startTime, NULL);
 	  lastTime = startTime;
 	  if (Dumper) fwrite(&HdrFile,sizeof(char),sizeof(HdrFile),Dumper);
 	  
-	  cout << FgColor::green()
-	       << "  -> Got first frame without error for ASM board 0x"
-	       << hex<<(int) StatFrame->MemFeId<<dec
-	       << FgColor::white() << endl;
+	  log(logDEBUG1,true) << FgColor::green()
+                          << "  -> Got first frame without error for ASM board 0x"
+                          << hex<<(int) StatFrame->MemFeId<<dec
+                          << FgColor::white();
 
 	} else if (DumperError) {
 	  fwrite(&HdrFile,sizeof(char),sizeof(HdrFile),DumperError);
@@ -427,9 +429,10 @@ void cReadRing::Run()
 	//	  NbSamples = GetNbSamples(); 
 	
 	// Permet de faire un histo des srout
-	u16 *buf = GetChannel(0);
+	//u16 *buf =
+	GetChannel(0);
 	unsigned short Ch = GetCh();
-	if ((Ch >=0) && (Ch < 24)) {
+	if (Ch < 24) {
 	  hSrout->noBoard = GetFeId();
 	  hSrout->nohalfDrs = Ch /4;
 	  hSrout->HistoSrout[hSrout->nohalfDrs][GetSrout()]++;
@@ -508,7 +511,7 @@ bool cReadRing::InitDumpFileError()
   string NameFile = FileName + ".err";
   DumperError = fopen(NameFile.c_str(),"wb");
   if(DumperError == NULL) {
-    printf("Unable to open dump error file %s\n", NameFile.c_str());
+    log(logERROR,true) << "Unable to open dump error file " << NameFile.c_str();
     return(false);
   }	
   return(true);
@@ -528,10 +531,10 @@ bool cReadRing::InitDumpFile(const bool rollover)
   Dumper = fopen(NameFile.c_str(),"wb");
 	
   if(Dumper == NULL) {
-    printf("Unable to open dump file %s\n", NameFile.c_str());
+    log(logERROR,true) << "Unable to open dump file " <<  NameFile.c_str();
     return(-1);
     return(false);
   }
-  else printf("Creating file %s\n", NameFile.c_str());
+  else log(logINFO,true) << "Creating file " << NameFile.c_str();
   return(true);
 } 

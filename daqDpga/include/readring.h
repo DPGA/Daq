@@ -14,12 +14,13 @@
 #include "ringshm.h"
 #include "shdmem.h" // contains StatFrame struct
 #include "decodeframe.h"
+#include "logit.h"
 
 class cReadRing : public DecodeFrame 
 {
  public:
   cReadRing(int index,std::string dev,int caplen,u_int32_t flags,int threads_core_affinity,std::string *File,ShmRingBuffer<SharedMemory> *shdmem,
-	    ShmRingBuffer<sHistoSrout> *shdsrout,bool dumpfile,packet_direction direction,int verbose,int wait_for_packet,unsigned int numcpu);
+	    ShmRingBuffer<sHistoSrout> *shdsrout,bool dumpfile,packet_direction direction,int wait_for_packet,unsigned int numcpu);
   ~cReadRing(); 
 
   void Stop();
@@ -70,7 +71,7 @@ class cReadRing : public DecodeFrame
   int Index;
   std::string Dev;
   pfring *Ring;
-  int Verbose;
+
   packet_direction Direction;
 
   int ThreadsCoreAffinity;

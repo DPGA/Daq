@@ -77,6 +77,7 @@
 #include "GenericTypeDefs.h"
 #include "readring.h"
 #include "Version.h"
+#include "logit.h"
 
 //#define  VERSION_DAQ "1.1.0  " __DATE__  " " __TIME__
 
@@ -119,7 +120,7 @@ ShmRingBuffer<sHistoSrout> 	*shdsrout;
 
 int g_msgid;
 std::thread *ipc;
-
+loglevel_e loglevel = logERROR;
 
 void init_ctrldaq(const char *Addr) {
   /****************************************************************************************/
@@ -136,11 +137,11 @@ void init_ctrldaq(const char *Addr) {
   si_other.sin_port = htons(60000);
   si_other.sin_addr.s_addr=inet_addr(Addr);
 
-  printf("ip start/stop command Address = %s\n",Addr);
+  log(logINFO,true) << "ip start/stop command Address = " << Addr;
   /*** Put AMC no Daq pause ***/
 
   if (sendto(s, BufferStart,2,0,(struct sockaddr*)&si_other,sizeof(si_other))==-1) {
-    printf("send error \n");
+    log(logERROR,true) << "send error";
     perror("send()");
     exit(errno);
   }
@@ -153,7 +154,7 @@ void PauseStartFrame(bool start)
  ***************************************************************/ 
 {
   if ((start) && (Pause)) {
-    printf("Daq Start ....\n");
+    log(logINFO,true) << "Daq Start ....";
     Pause = false;
     if (sendto(s, BufferStart,2,0,(struct sockaddr*)&si_other,sizeof(si_other))==-1) {
       perror("send()");
@@ -161,7 +162,7 @@ void PauseStartFrame(bool start)
     }
   }
   else if (!Pause) {
-    printf("Pause request ...  \n");
+    log(logINFO,true) << "Pause request ...  ";
     Pause = true;
     if (sendto(s, BufferStop,2,0,(struct sockaddr*)&si_other,sizeof(si_other))==-1) {
       perror("send()");
@@ -172,11 +173,11 @@ void PauseStartFrame(bool start)
 
 void VersionInfo()
 {
-  std::cout << FgColor::yellow() << "Program Daq " << __PROGRAM_VERSION_STRING__ << "  Gitrev " << __GITVER__
-	    << " build at " << __DATE__ << "  " << __TIME__ << FgColor::white() << std::endl;
-  std::cout << "Author Daniel Lambert <daniel.lambert@clermont.in2p3.fr>" << std::endl;
-  std::cout << "Shm Library " << getVersionShm() << std::endl;
-  std::cout << "DecodeFrame Library " << getVersionDecodeFrame() << std::endl;
+  log(logINFO,true) << FgColor::yellow() << "Program Daq " << __PROGRAM_VERSION_STRING__ << "  Gitrev " << __GITVER__
+	    << " build at " << __DATE__ << "  " << __TIME__ << FgColor::white();
+  log(logINFO,true) << "Author Daniel Lambert <daniel.lambert@clermont.in2p3.fr>";
+  log(logINFO,true) << "Shm Library " << getVersionShm();
+  log(logINFO,true) << "DecodeFrame Library " << getVersionDecodeFrame();
 }
 
 void printHelp(void) {
@@ -266,7 +267,7 @@ void PrintStatsEnd()
 		
     if (StatFrame->NbFrameRec>0)  Purcent = (double)StatFrame->NbFrameAsmLost/(double)StatFrame->NbFrameRec;
     else Purcent= 0.0;
-    printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%6llu %s (%2.2f %%) \t Frame Amc=%8d \t NumFrameOk=%8d NumTriggerCountsFromASM=%s%6d%s (%2.4f %%) ErrId=%8llu Under=%4llu Over=%4llu Tc=%d (%d)\n",
+    printf("%s\t [0x%x] Frame rec=%8llu \t FrameAsm = %8llu \t FrameLost = %s%6llu %s (%2.2f %%) \t Frame Amc=%8d \t NumFrameOk=%8llu NumTriggerCountsFromASM=%s%6llu%s (%2.4f %%) ErrId=%8llu Under=%4llu Over=%4llu Tc=%d (%d)\n",
 	   pIt->GetDev().c_str(),
 	   StatFrame->MemFeId,
 	   StatFrame->NbFrameRec,
@@ -433,7 +434,9 @@ void IpcReceivedMsg()
       case IPCRECORD   : s = msg.arg.sText;for (auto &it : pReadRing) it->setFile(&s,true); break;
       case IPCWITHOUTFILE : for (auto &it : pReadRing) it->noFile(); break;
       case IPCNBSAMPLES :  for (auto &it : pReadRing) it->setNbSamples(msg.arg.val);
-	std::cout << "NbSamples " << msg.arg.val << std::endl;break;
+                           log(logINFO,true) << "NbSamples " << msg.arg.val;break;
+      case IPCDEBUG     :  loglevel = (loglevel_e) msg.arg.val;break;
+	
       };
     }
     else usleep(100);
@@ -515,7 +518,7 @@ int main(int argc, char* argv[]) {
 
   VersionInfo();
 
-  while((c = getopt(argc,argv,"hae:l:i:mvb:P:S:g:f:Rzo:n:")) != -1) {
+  while((c = getopt(argc,argv,"hae:l:i:mv:b:P:S:g:f:Rzo:n:")) != -1) {
     switch(c) {
     case 'h':
       printHelp();
@@ -541,7 +544,8 @@ int main(int argc, char* argv[]) {
       use_extended_pkt_header = 1;
       break;
     case 'v':
-      verbose = 1;
+      verbose = atoi(optarg);
+      loglevel = (loglevel_e) verbose;
       break;
     case 'b':
       cpu_percentage = atoi(optarg);
@@ -610,7 +614,8 @@ int main(int argc, char* argv[]) {
   shdNet = new ShmRingBuffer<sStatFrame>(CAPACITY,true,SHM_NETWORK);
   shdsrout = new ShmRingBuffer<sHistoSrout>(CAPACITY,true,SHM_SROUT);
   
-  printf("Shm Library %s\n decodeFrame library %s\n",shdmem->getVersion().c_str(),"toto");
+  log(logINFO,true) << "Shm Library " << shdmem->getVersion();
+  log(logINFO,true) << "DecodeFrame library ";
 	
   printf("Size Stats net %lu\n",sizeof (sStatFrame));
 	
@@ -637,7 +642,7 @@ int main(int argc, char* argv[]) {
       return(-1);
     }
     if (num_channels[NumIfce] > MAX_NUM_THREADS) {
-      printf("WARNING: Too many channels (%d), using %d channels\n", num_channels[NumIfce], MAX_NUM_THREADS);
+      log(logWARNING,true) << "WARNING: Too many channels (" << num_channels[NumIfce] <<"), using " << MAX_NUM_THREADS << " channels";
       num_channels[NumIfce] = MAX_NUM_THREADS;
     } else if (num_channels[NumIfce] > numCPU) {
       printf("WARNING: More channels (%d) than available cores (%d), using %d channels\n", num_channels[NumIfce], numCPU, numCPU);
@@ -668,7 +673,7 @@ int main(int argc, char* argv[]) {
   for (unsigned int Interface=0; Interface<	Ifce;++Interface) {	
     for (unsigned int index = 0; index < num_channels[Interface]; index++,i++)  {
       pReadRing.push_back(new class cReadRing(index,device[Interface],snaplen,flags,threads_core_affinity[Interface][index],&File,shdmem,shdsrout,
-					      DumpFile,direction,verbose,wait_for_packet,numCPU));
+					      DumpFile,direction,wait_for_packet,numCPU));
       if (!pReadRing.back()) std::cout <<" Error Creating thread " << i << "  " << pReadRing[i] << std::endl;
       pReadRing.back()->setNbEventDisplay(NbEventDisplay);
       ThreadList.push_back(pReadRing.back()->MemberThread());
