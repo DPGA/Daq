@@ -15,12 +15,13 @@
 #include "shdmem.h" // contains StatFrame struct
 #include "decodeframe.h"
 #include "logit.h"
+#include "eventbuilder.h"
 
 class cReadRing : public DecodeFrame 
 {
  public:
   cReadRing(int index,std::string dev,int caplen,u_int32_t flags,int threads_core_affinity,std::string *File,ShmRingBuffer<SharedMemory> *shdmem,
-	    ShmRingBuffer<sHistoSrout> *shdsrout,bool dumpfile,packet_direction direction,int wait_for_packet,unsigned int numcpu);
+	    ShmRingBuffer<sHistoSrout> *shdsrout,bool dumpfile,packet_direction direction,int wait_for_packet,unsigned int numcpu,cEventBuilder *peventbuilder);
   ~cReadRing(); 
 
   void Stop();
@@ -43,6 +44,7 @@ class cReadRing : public DecodeFrame
   void setFile(string *File,bool wr);
   void noFile();
   void setNbSamples(uint16_t nbsamples);
+  void setEventBuilder(bool eventbuilder) {eventBuilder = eventbuilder;};
 
  private:
   std::thread the_thread;
@@ -91,5 +93,7 @@ class cReadRing : public DecodeFrame
   sHistoSrout *hSrout;
   ShmRingBuffer<sHistoSrout> *ShdSrout;
   bool errFirstFrame;
+  cEventBuilder *pEventBuilder;
+  bool eventBuilder = false;
 };
 #endif

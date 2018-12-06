@@ -61,7 +61,7 @@ pcap_dumper_t *dump_open(pcap_t *pcap, const char *path, int want_gzip) {
 }
 
 cReadRing::cReadRing(int index,string dev,int caplen,u_int32_t flags,int threads_core_affinity,string *File,ShmRingBuffer<SharedMemory> *shdmem,
-		     ShmRingBuffer<sHistoSrout> *shdrout,bool dumpfile,packet_direction direction,int wait_for_packet,unsigned int numcpu) :
+		     ShmRingBuffer<sHistoSrout> *shdrout,bool dumpfile,packet_direction direction,int wait_for_packet,unsigned int numcpu,cEventBuilder *peventbuilder) :
                      DecodeFrame(),the_thread()
 																			
 /************************************************
@@ -84,7 +84,7 @@ cReadRing::cReadRing(int index,string dev,int caplen,u_int32_t flags,int threads
   Compress = false;
   FileMode = ALL;
   TriggerCount=0;
-	
+  pEventBuilder = peventbuilder;	
   std::stringstream sstream; 
   sstream << std::hex << Index;
   std::string result = sstream.str();
@@ -123,6 +123,7 @@ cReadRing::cReadRing(int index,string dev,int caplen,u_int32_t flags,int threads
 
 void cReadRing::StartDaq()
 /************************************************
+ *
  * 
  * 
  ***********************************************/
@@ -189,7 +190,7 @@ bool cReadRing::CreateFifo()
  * 
  * ********************************************************************************************************************/
 {
-	
+	void setNbEventDisplay(long nb);
   string NameFifo = "/var/run/" + Dev + ".fifo";
   if (mkfifo(NameFifo.c_str(),0666) < 0) {
     cout << FgColor::red() << "Error creating : " << NameFifo << "  " << FgColor::white() << endl;
@@ -395,6 +396,7 @@ void cReadRing::Run()
 	HdrFile.ModeFile = FileMode;
 	HdrFile.FrontEndId = GetFeId(); 
 	HdrFile.NbSamples  = NbSamples; //GetNbSamples();	
+    gettimeofday(&startTime, NULL);
 	HdrFile.CreateTime = startTime;
 
 	log(logDEBUG1,true) << FgColor::green()
@@ -449,31 +451,32 @@ void cReadRing::Run()
 	else {
 	  TriggerCount = GetCptTriggerThor();
 	  StatFrame->TriggerCountOrig = true;
+      if (eventBuilder) pEventBuilder->setEvent(TriggerCount,GetPattern(),StatFrame->MemLen,&buffer[42],GetTimeStpThorAsm());
 	}
 	
 	StatFrame->NbFrameAsm= GetNbFrameAsm();
 	StatFrame->NbFrameAsmLost += StatFrame->NbFrameAsm - (StatFrame->NbFrameAsmOld+1);
 	StatFrame->NbFrameAsmOld  = StatFrame->NbFrameAsm;
 	StatFrame->TriggerCount = TriggerCount;
-	if (Dumper) {
+	if ((Dumper) && (!eventBuilder)) {
 	  switch (FileMode) {
 	  case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),Dumper);break;
 	  case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),Dumper);break; 
 	  case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),Dumper);break; 
 	  }
 	}
-	
-	if (((TriggerCount) % NbEventDisplay) == 0){
+
+	if ((((TriggerCount) % NbEventDisplay) == 0) && !eventBuilder) {
 	  //					printf("Write shm\n");
-	  ShdMem->push_back(*TempBuf);
+        ShdMem->push_back(*TempBuf);
 	  //					ShdSrout->push_back(*hSrout);
 	}
       }	else if (DumperError) {  
-	switch (FileMode) {
-	case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),DumperError);break;
-	case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),DumperError);break; 
-	case ALL	:fwrite(&buffer[0],sizeof(char),(hdr.len),DumperError);break; 
-	}
+        switch (FileMode) {
+            case HEADER 	:fwrite(&buffer[42],sizeof(char),(sizeof(struct S_HeaderFrame)),DumperError);break;
+            case RAWDATA	:fwrite(&buffer[42],sizeof(char),(hdr.len-42),DumperError);break; 
+            case ALL	:fwrite(&buffer[0],sizeof(char),(hdr.len),DumperError);break; 
+        }
       }
     } else {
       if(WaitForPacket == 0)  {

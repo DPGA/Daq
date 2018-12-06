@@ -78,6 +78,7 @@
 #include "readring.h"
 #include "Version.h"
 #include "logit.h"
+#include "eventbuilder.h"
 
 //#define  VERSION_DAQ "1.1.0  " __DATE__  " " __TIME__
 
@@ -108,6 +109,7 @@ u_int DurationRun 	= ALARM_START;
 int CountAlarm;
 bool SendPause;
 bool DumpFile;
+bool eventBuilder;
 bool Rollover;
 bool Pause=false;
 int s;
@@ -120,6 +122,7 @@ ShmRingBuffer<sHistoSrout> 	*shdsrout;
 
 int g_msgid;
 std::thread *ipc;
+cEventBuilder *pEventBuilder;
 loglevel_e loglevel = logERROR;
 
 void init_ctrldaq(const char *Addr) {
@@ -240,6 +243,7 @@ void PrintStat_v1()
 	  thptEno1,
 	  thptEno2,
 	  FgColor::white());
+  pEventBuilder->PrintStats();
 } 
 
 
@@ -416,23 +420,31 @@ void IpcReceivedMsg()
       printf( "received '%lu' %s@ %d \n", msg.nMsgType,msg.arg.sText,msg.cmd);
       switch (msg.cmd) {
       case IPCNONE : std::cout << "None" << std::endl;break;
-      case IPCDAQ	 :
-	if (!RunDaq) {
-	  for (auto &it : pReadRing) {
-	    it->setNbEventDisplay(msg.arg.val);
-	    it->StartDaq();
-	  }
-	}
-	RunDaq = true;
-	std::cout << "Daq  " << RunDaq << std::endl;
-	break;
-      case IPCSTOP : RunDaq = false;
-	PrintStatsEnd();
-	std::cout << "Stop  " << RunDaq << std::endl;break;
-      case IPCINTERVAL : for (auto &it : pReadRing) it->setNbEventDisplay(msg.arg.val);
-	std::cout << "interval " << msg.arg.val << std::endl;break;
-      case IPCRECORD   : s = msg.arg.sText;for (auto &it : pReadRing) it->setFile(&s,true); break;
-      case IPCWITHOUTFILE : for (auto &it : pReadRing) it->noFile(); break;
+      case IPCDAQ  :
+                    if (!RunDaq) {
+                        pEventBuilder->StartDaq();
+                        for (auto &it : pReadRing) {
+                            it->setNbEventDisplay(msg.arg.val);
+                            it->StartDaq();
+                        }
+                    }
+                    RunDaq = true;
+                    std::cout << "Daq  " << RunDaq << std::endl;
+                    break;
+      case IPCSTOP      :   RunDaq = false;
+                            PrintStatsEnd();
+                            std::cout << "Stop  " << RunDaq << std::endl;
+                            break;
+      case IPCINTERVAL  :   for (auto &it : pReadRing) it->setNbEventDisplay(msg.arg.val);
+                            pEventBuilder->setNbEventDisplay(msg.arg.val);
+                            std::cout << "interval " << msg.arg.val << std::endl;
+                            break;
+      case IPCRECORD    :   s = msg.arg.sText;
+                            log(logINFO,true) << " Record to file  " << s;
+                            if   (!eventBuilder) for(auto &it : pReadRing) it->setFile(&s,true);
+                            else pEventBuilder->setFile(&s,true);
+                            break;
+      case IPCWITHOUTFILE : for (auto &it : pReadRing) it->noFile(); break;//pEventBuilder->noFile();break;
       case IPCNBSAMPLES :  for (auto &it : pReadRing) it->setNbSamples(msg.arg.val);
                            log(logINFO,true) << "NbSamples " << msg.arg.val;break;
       case IPCDEBUG     :  loglevel = (loglevel_e) msg.arg.val;break;
@@ -456,7 +468,7 @@ int main(int argc, char* argv[]) {
 	{"dst 192.168.2.17 and  udp port 60000","dst 192.168.2.18 and  udp port 60001",
 	"dst 192.168.2.19 and  udp port 60002","dst 192.168.2.20 and  udp port 60003",
 	"dst 192.168.2.21 and  udp port 60004","dst 192.168.2.22 and  udp port 60005",
-	BgColor::black"dst 192.168.2.23 and  udp port 60006","dst 192.168.2.24 and  udp port 60007"}
+	"dst 192.168.2.23 and  udp port 60006","dst 192.168.2.24 and  udp port 60007"}
 	};
   */
   /*std::string BpfFilter[2][8] = {{"src 192.168.3.129 and  udp port 60000","src 192.168.3.130 and  udp port 60000",
@@ -481,6 +493,7 @@ int main(int argc, char* argv[]) {
   u_int verbose = 0;
 
   u_int num_channels[MAX_IFCE] = {1,1};
+  eventBuilder = false;
 	
   u_int Ifce = 0,NumMask = 0;
   bool compress = false;
@@ -491,11 +504,12 @@ int main(int argc, char* argv[]) {
   std::string File;
   int wait_for_packet=1;
   int use_extended_pkt_header=0;
-  
+  bool udpSend = false;
   u_int16_t cpu_percentage = 0;
   u_int32_t version;
   u_int32_t flags = 0;
-  
+  string udpAddr;
+  eventBuilder = false;
   //printf("%s",BgColor::black);
   
   for (u_int NumIfce=0;NumIfce < MAX_IFCE;++NumIfce) {
@@ -518,7 +532,7 @@ int main(int argc, char* argv[]) {
 
   VersionInfo();
 
-  while((c = getopt(argc,argv,"hae:l:i:mv:b:P:S:g:f:Rzo:n:")) != -1) {
+  while((c = getopt(argc,argv,"hae:l:i:mv:b:P:S:g:f:Rzo:n:EU:")) != -1) {
     switch(c) {
     case 'h':
       printHelp();
@@ -571,6 +585,15 @@ int main(int argc, char* argv[]) {
     case 'R':
       Rollover = true;
       break;
+    case 'E':
+      eventBuilder = true;
+      std::cout << FgColor::yellow() << "EventBuilder Actived"  << FgColor::white() << std::endl;
+      break;      
+    case 'U':
+      udpSend = true;
+      udpAddr = optarg;
+      std::cout << FgColor::yellow() << "Udp Actived with " <<  optarg << FgColor::white() << std::endl;
+      break;            
     case 'z':
       compress = true;
       printf("Mode compressed \n");
@@ -668,17 +691,27 @@ int main(int argc, char* argv[]) {
     TotalChannels += num_channels[NumIfce];
   }
 	
+  bool FileEventBuilder = DumpFile & eventBuilder;
+  pEventBuilder = new cEventBuilder(10,File,shdmem,numCPU,FileEventBuilder,udpAddr.c_str());	
+  std::thread th(&cEventBuilder::Run, pEventBuilder);
+  usleep(100);
+  pEventBuilder->SetOnlyHeader(ModeFile);
+  pEventBuilder->setNbEventDisplay(NbEventDisplay);
+  log(logINFO,true) << "udpsend = " << udpSend;
+  pEventBuilder->setUpdSend(udpSend);
+  
   u_int i =0;
-	
+  bool FileByCard = DumpFile & not eventBuilder;	
   for (unsigned int Interface=0; Interface<	Ifce;++Interface) {	
     for (unsigned int index = 0; index < num_channels[Interface]; index++,i++)  {
       pReadRing.push_back(new class cReadRing(index,device[Interface],snaplen,flags,threads_core_affinity[Interface][index],&File,shdmem,shdsrout,
-					      DumpFile,direction,wait_for_packet,numCPU));
+					      FileByCard,direction,wait_for_packet,numCPU,pEventBuilder));
       if (!pReadRing.back()) std::cout <<" Error Creating thread " << i << "  " << pReadRing[i] << std::endl;
       pReadRing.back()->setNbEventDisplay(NbEventDisplay);
       ThreadList.push_back(pReadRing.back()->MemberThread());
       pReadRing.back()->SetOnlyHeader(ModeFile);
       pReadRing.back()->SetCompress(compress);
+      pReadRing.back()->setEventBuilder(eventBuilder);
       usleep(100);
     }
 
@@ -687,7 +720,7 @@ int main(int argc, char* argv[]) {
       pfring_config(cpu_percentage);
     }
   }
-	
+
 	
   /**********************************************************************************************************/
   /* Create IPc Message and thread																									 */
