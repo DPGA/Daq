@@ -446,6 +446,7 @@ void IpcReceivedMsg()
                             break;
       case IPCWITHOUTFILE : for (auto &it : pReadRing) it->noFile(); break;//pEventBuilder->noFile();break;
       case IPCNBSAMPLES :  for (auto &it : pReadRing) it->setNbSamples(msg.arg.val);
+                           pEventBuilder->setNbSamples(msg.arg.val);
                            log(logINFO,true) << "NbSamples " << msg.arg.val;break;
       case IPCDEBUG     :  loglevel = (loglevel_e) msg.arg.val;break;
 	
