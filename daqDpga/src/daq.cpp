@@ -422,6 +422,7 @@ void IpcReceivedMsg()
       case IPCNONE : std::cout << "None" << std::endl;break;
       case IPCDAQ  :
                     if (!RunDaq) {
+                        pEventBuilder->setNbEventDisplay(msg.arg.val);
                         pEventBuilder->StartDaq();
                         for (auto &it : pReadRing) {
                             it->setNbEventDisplay(msg.arg.val);

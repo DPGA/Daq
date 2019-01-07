@@ -465,11 +465,11 @@ void cReadRing::Run()
 	  case ALL		:fwrite(&buffer[0],sizeof(char),(hdr.len),Dumper);break; 
 	  }
 	}
-
+	if ((TriggerCount) % 1000 == 0) ShdSrout->push_back(*hSrout);
 	if ((((TriggerCount) % NbEventDisplay) == 0) && !eventBuilder) {
 	  //					printf("Write shm\n");
         ShdMem->push_back(*TempBuf);
-	  //					ShdSrout->push_back(*hSrout);
+           
 	}
       }	else if (DumperError) {  
         switch (FileMode) {
